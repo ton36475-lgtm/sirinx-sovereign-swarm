@@ -1,0 +1,21 @@
+{
+  "event_id": "evt_fail_001",
+  "event_type": "lead.intent_detected",
+  "schema_version": "1.0",
+  "source": "website_calculator",
+  "channel_level": "owned",
+  "lead_id": null,
+  "payload": {
+    "force_error": true
+  },
+  "risk": {
+    "pii_redacted": true,
+    "prompt_injection_detected": false,
+    "risk_level": "low"
+  },
+  "trace": {
+    "request_id": "req_fail_001",
+    "idempotency_key": "dryrun_evt_fail_001",
+    "received_at": "2026-05-22T00:00:00+07:00"
+  }
+}

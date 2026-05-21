@@ -1,0 +1,109 @@
+{
+  "$id": "https://sirinx.co/schemas/lead-intent-detected.schema.json",
+  "title": "LeadIntentDetectedEvent",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "schema_version",
+    "source",
+    "channel_level",
+    "payload",
+    "risk",
+    "trace"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string"
+    },
+    "event_type": {
+      "type": "string",
+      "enum": ["lead.intent_detected"]
+    },
+    "schema_version": {
+      "type": "string",
+      "enum": ["1.0"]
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "website_calculator",
+        "line_oa",
+        "facebook_owned_page",
+        "facebook_ads_comment",
+        "manual_import",
+        "test"
+      ]
+    },
+    "channel_level": {
+      "type": "string",
+      "enum": ["owned", "inbound_consent", "partner_authorized", "public_review_only"]
+    },
+    "lead_id": {
+      "type": ["string", "null"]
+    },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": ["string", "null"]
+        },
+        "current_bill": {
+          "type": ["number", "null"]
+        },
+        "target_saving": {
+          "type": ["number", "null"]
+        },
+        "customer_type": {
+          "type": ["string", "null"],
+          "enum": ["home", "home_office", "shop", "office", "sme", "factory", "industrial", "unknown", null]
+        },
+        "province": {
+          "type": ["string", "null"]
+        },
+        "usage_pattern": {
+          "type": ["string", "null"],
+          "enum": ["daytime_heavy", "mixed", "nighttime_heavy", "unknown", null]
+        },
+        "phase_type": {
+          "type": ["string", "null"],
+          "enum": ["single_phase", "three_phase", "unknown", null]
+        },
+        "force_error": {
+          "type": ["boolean", "null"]
+        }
+      }
+    },
+    "risk": {
+      "type": "object",
+      "required": ["pii_redacted", "prompt_injection_detected", "risk_level"],
+      "properties": {
+        "pii_redacted": {
+          "type": "boolean"
+        },
+        "prompt_injection_detected": {
+          "type": "boolean"
+        },
+        "risk_level": {
+          "type": "string",
+          "enum": ["low", "medium", "high"]
+        }
+      }
+    },
+    "trace": {
+      "type": "object",
+      "required": ["request_id", "idempotency_key", "received_at"],
+      "properties": {
+        "request_id": {
+          "type": "string"
+        },
+        "idempotency_key": {
+          "type": "string"
+        },
+        "received_at": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

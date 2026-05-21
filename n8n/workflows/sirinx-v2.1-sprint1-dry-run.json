@@ -1,0 +1,62 @@
+{
+  "name": "SIRINX v2.1 Sprint 1 Dry Run",
+  "active": false,
+  "version": 1,
+  "nodes": [
+    {
+      "name": "Queue Consumer Trigger",
+      "type": "manualTrigger",
+      "position": [0, 0],
+      "notes": "Sprint 1 blueprint only. Production public webhooks remain disabled."
+    },
+    {
+      "name": "Validate Event Schema",
+      "type": "function",
+      "position": [220, 0],
+      "notes": "Validate lead.intent_detected schema v1 before any processing."
+    },
+    {
+      "name": "Check force_error",
+      "type": "if",
+      "position": [440, 0],
+      "notes": "Used by evt_fail_001 to prove retry and DLQ handling."
+    },
+    {
+      "name": "OPAL Tier Match",
+      "type": "function",
+      "position": [660, -120],
+      "notes": "Static OPAL config only. No AI-generated pricing."
+    },
+    {
+      "name": "Hermes Draft Mock",
+      "type": "function",
+      "position": [880, -120],
+      "notes": "Draft requires human approval and must pass pricing guardrail."
+    },
+    {
+      "name": "Write lead_events",
+      "type": "function",
+      "position": [1100, -120]
+    },
+    {
+      "name": "Write solar_estimates",
+      "type": "function",
+      "position": [1320, -120]
+    },
+    {
+      "name": "Write agent_audit_logs",
+      "type": "function",
+      "position": [1540, -120]
+    },
+    {
+      "name": "DLQ",
+      "type": "function",
+      "position": [660, 160],
+      "notes": "Failed events go to dead_letter_events after retry exhaustion."
+    }
+  ],
+  "connections": {},
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "opal_pricing_version": "2026-MVP1",
+  "currency": "THB",
+  "packages": [
+    {
+      "tier": "START",
+      "price_thb": 125000,
+      "positioning": "บ้านหรืออาคารขนาดเล็กที่ต้องการลดค่าไฟระดับเริ่มต้น",
+      "allowed_use_cases": ["home_small", "starter_bill_reduction", "low_bill"]
+    },
+    {
+      "tier": "PRO",
+      "price_thb": 315000,
+      "positioning": "บ้านขนาดกลางถึงใหญ่ หรือโฮมออฟฟิศที่ใช้ไฟกลางวันมาก",
+      "allowed_use_cases": ["home_medium", "home_office", "shop", "daytime_heavy"]
+    },
+    {
+      "tier": "ENTERPRISE",
+      "price_thb": 4990000,
+      "positioning": "ธุรกิจขนาดใหญ่ โรงงาน หรือระบบเชิงพาณิชย์",
+      "allowed_use_cases": ["sme", "factory", "industrial"]
+    }
+  ],
+  "mandatory_benefits": [
+    "บริการล้างแผง 3 ปี",
+    "รองรับ e-Tax สูงสุด 200,000 บาท",
+    "ราคาจริงต้องประเมินจากบิลค่าไฟ รูปหลังคา ระบบไฟ และหน้างาน"
+  ],
+  "guardrails": {
+    "ai_may_not_create_new_price": true,
+    "ai_may_not_offer_discount": true,
+    "ai_may_not_guarantee_savings": true,
+    "final_quote_requires_human_review": true
+  }
+}

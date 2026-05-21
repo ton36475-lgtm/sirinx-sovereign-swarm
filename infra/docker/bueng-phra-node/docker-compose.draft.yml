@@ -1,0 +1,28 @@
+services:
+  hermes-radar-worker:
+    image: sirinx/hermes-radar-worker:latest
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    networks:
+      - hermes_private
+
+  hermes-local-queue:
+    image: redis:7-alpine
+    restart: unless-stopped
+    networks:
+      - hermes_private
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    networks:
+      - hermes_private
+
+networks:
+  hermes_private:
+    driver: bridge
