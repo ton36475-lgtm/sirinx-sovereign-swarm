@@ -27,10 +27,13 @@ npm run sprint5:gate
 npm run sprint6:gate
 npm run sprint7:gate
 npm run sprint8:gate
+npm run sprint9:gate
 npm run db:preflight
 npm run channel:preflight
 npm run admin-auth:preflight
 npm run webhook-security:preflight
+npm run migration:readiness
+npm run webhook:smoke:signed
 node apps/webhook-gateway/src/index.mjs
 ```
 
@@ -67,3 +70,7 @@ Admin auth boundary is documented in:
 Webhook signature/replay boundary is documented in:
 
 `docs/SPRINT8_WEBHOOK_SECURITY_BOUNDARY.md`
+
+Staging readiness gate is documented in:
+
+`docs/SPRINT9_STAGING_READINESS_GATE.md`

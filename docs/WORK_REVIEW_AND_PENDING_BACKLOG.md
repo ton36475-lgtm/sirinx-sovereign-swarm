@@ -12,17 +12,18 @@
 | Sprint 6 | Channel gate simulator, redacted LINE env inspection, send-disabled worker, blocked outbox audit |
 | Sprint 7 | Admin auth boundary, token gate, explicit local-dev bypass, admin access audit |
 | Sprint 8 | LINE/Meta webhook signature gate, replay window, rate limiter abstraction, webhook security audit |
+| Sprint 9 | Migration readiness gate, rollback coverage inspection, signed LINE/Meta webhook smoke harness |
 
 ## Production Blockers
 
 1. Confirm actual hosting topology.
 2. Configure private database env without printing values.
-3. Run DB migration dry-run in a staging or local Supabase database.
-4. Verify rollback in staging/local DB.
+3. Run DB migration dry-run in a real staging or local Supabase database.
+4. Verify rollback in the same staging/local DB class.
 5. Put admin behind Cloudflare Access or equivalent.
 6. Configure private admin token/runtime env without printing values.
 7. Configure production LINE/Meta webhook secrets without printing values.
-8. Run signed webhook smoke tests in staging before enabling production processing.
+8. Run signed webhook smoke tests against staging origin before enabling production processing.
 9. Configure LINE OA recipient/token and message send gate.
 10. Add a send worker that can only send approved outbox items.
 11. Add production smoke tests that prove `external_send_performed` only changes after real send response.
@@ -31,9 +32,10 @@
 
 ## Current Safe Next Move
 
-Build Sprint 9 as staging database and signed webhook readiness gate:
+Build Sprint 10 as controlled staging execution gate:
 
-- run Supabase migration dry-run in a local/staging database
-- verify rollback files against the same database class
-- add signed webhook smoke harness that can run without printing secrets
-- keep `SIRINX_SOCIAL_WEBHOOK_PROCESSING_ENABLED=false` until human approval
+- configure a local or staging DB target without printing credentials
+- run `npm run migration:readiness` with `SIRINX_DB_DRY_RUN_MODE=local` or `staging`
+- only then run actual DB migration dry-run in that target
+- add a network smoke mode for signed webhooks against staging origin
+- keep all production processing disabled until human approval

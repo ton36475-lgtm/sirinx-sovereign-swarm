@@ -5,7 +5,7 @@
 - No AI-created pricing.
 - No AI-created discounts.
 - No guaranteed savings claims.
-- No production social webhooks in Sprint 1.
+- No production social webhook processing until signature, replay, staging smoke, and human approval gates pass.
 - No third-party scraping or auto-commenting.
 - No PII before consent.
 - No raw PII to Cloud Judge.
@@ -17,7 +17,11 @@
 
 `/webhooks/mock` is the only enabled webhook endpoint.
 
-`/webhooks/line` and `/webhooks/meta` return `501 not_enabled_in_sprint_1`.
+## Sprint 8+ Social Webhook Boundary
+
+`/webhooks/line` and `/webhooks/meta` verify signatures and replay controls first, then return `verified_processing_disabled` while `SIRINX_SOCIAL_WEBHOOK_PROCESSING_ENABLED=false`.
+
+They do not enqueue, process, or write externally until staging proof and human approval are complete.
 
 ## Sprint 2 Local Calculator Boundary
 

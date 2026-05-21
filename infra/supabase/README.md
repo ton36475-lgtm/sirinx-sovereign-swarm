@@ -37,12 +37,15 @@ The preflight checks only for presence and never prints values:
 - `SIRINX_META_APP_SECRET` only in webhook gateway runtime
 - `SIRINX_SOCIAL_WEBHOOK_PROCESSING_ENABLED=false` until signed production smoke is approved
 - `SIRINX_WEBHOOK_REPLAY_WINDOW_SECONDS=300`
+- `SIRINX_DB_DRY_RUN_MODE=validate-only` by default
+- `SIRINX_ALLOW_DB_MUTATION=false` unless a local/staging target is explicitly approved
 
 ## Preflight
 
 ```bash
 npm run db:preflight
 npm run webhook-security:preflight
+npm run migration:readiness
 ```
 
 The command validates environment readiness and migration guardrails without attempting a network connection.
