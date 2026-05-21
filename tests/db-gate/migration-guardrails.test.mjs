@@ -11,6 +11,7 @@ test("migration guardrails pass with RLS migration present", () => {
   assert.equal(result.files.includes("003_reply_draft_approval_queue.sql"), true);
   assert.equal(result.files.includes("004_reply_outbox_gated_send.sql"), true);
   assert.equal(result.files.includes("005_reply_outbox_channel_gate.sql"), true);
+  assert.equal(result.files.includes("006_admin_access_audit.sql"), true);
 });
 
 test("RLS migration revokes direct public roles and enables forced RLS", () => {
@@ -47,6 +48,18 @@ test("channel gate migration adds blocked status without opening public access",
   assert.match(sql, /add column if not exists blocked_by text/i);
   assert.doesNotMatch(sql, /grant .* anon/i);
   assert.doesNotMatch(sql, /grant .* authenticated/i);
+});
+
+test("admin access audit migration is backend-only with forced RLS", () => {
+  const sql = readFileSync(
+    new URL("../../infra/supabase/migrations/006_admin_access_audit.sql", import.meta.url),
+    "utf8"
+  );
+  assert.match(sql, /create table if not exists admin_access_audit_logs/i);
+  assert.match(sql, /revoke all on table admin_access_audit_logs from anon, authenticated/i);
+  assert.match(sql, /grant select, insert, update, delete on table admin_access_audit_logs to service_role/i);
+  assert.match(sql, /alter table admin_access_audit_logs force row level security/i);
+  assert.match(sql, /never stores admin token values/i);
 });
 
 test("reply draft migration creates backend-only approval queue with RLS", () => {

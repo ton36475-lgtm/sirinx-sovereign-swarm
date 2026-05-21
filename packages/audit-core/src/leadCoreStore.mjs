@@ -8,6 +8,7 @@ export function createLeadCoreStore() {
     event_processing_log: [],
     dead_letter_events: [],
     agent_audit_logs: [],
+    admin_access_audit_logs: [],
     reply_drafts: [],
     reply_outbox: []
   };
@@ -279,6 +280,31 @@ export function createLeadCoreStore() {
         created_at: new Date().toISOString()
       };
       state.agent_audit_logs.push(row);
+      return row;
+    },
+    saveAdminAccessAuditLog({
+      route,
+      method,
+      allowed,
+      status_code,
+      reason,
+      actor_ref = "unknown",
+      auth_mode = "blocked",
+      metadata = {}
+    }) {
+      const row = {
+        id: randomUUID(),
+        route,
+        method,
+        allowed,
+        status_code,
+        reason,
+        actor_ref,
+        auth_mode,
+        metadata,
+        created_at: new Date().toISOString()
+      };
+      state.admin_access_audit_logs.push(row);
       return row;
     }
   };

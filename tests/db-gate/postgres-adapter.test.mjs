@@ -112,6 +112,39 @@ test("Postgres adapter can lookup and block reply outbox with parameterized SQL"
   }
 });
 
+test("Postgres adapter writes admin access audit without token values", async () => {
+  const calls = [];
+  const adapter = createPostgresLeadCoreAdapter({
+    now: () => new Date("2026-05-22T00:00:00+07:00"),
+    query: async (sql, values) => {
+      calls.push({ sql, values });
+      return { rows: [rowFor(sql, values)] };
+    }
+  });
+
+  const audit = await adapter.saveAdminAccessAuditLog({
+    route: "/api/admin/reply-drafts",
+    method: "GET",
+    allowed: false,
+    status_code: 401,
+    reason: "admin_token_missing",
+    actor_ref: "unknown",
+    auth_mode: "blocked",
+    metadata: {
+      token_value_printed: false
+    }
+  });
+
+  assert.equal(audit.route, "/api/admin/reply-drafts");
+  assert.equal(audit.allowed, false);
+  assert.equal(calls.some((call) => /insert into admin_access_audit_logs/i.test(call.sql)), true);
+  for (const call of calls) {
+    assert.equal(Array.isArray(call.values), true);
+    assert.doesNotMatch(call.sql, /\$\{/);
+    assert.doesNotMatch(JSON.stringify(call.values), /test-admin-token|secret-admin-token/);
+  }
+});
+
 function rowFor(sql, values) {
   if (/insert into leads/i.test(sql)) {
     return { id: values[0], current_bill: values[3], target_saving: values[4] };
@@ -130,6 +163,18 @@ function rowFor(sql, values) {
   }
   if (/insert into agent_audit_logs/i.test(sql)) {
     return { id: values[0], agent_name: values[1], action_type: values[2] };
+  }
+  if (/insert into admin_access_audit_logs/i.test(sql)) {
+    return {
+      id: values[0],
+      route: values[1],
+      method: values[2],
+      allowed: values[3],
+      status_code: values[4],
+      reason: values[5],
+      actor_ref: values[6],
+      auth_mode: values[7]
+    };
   }
   if (/insert into dead_letter_events/i.test(sql)) {
     return { id: values[0], original_event_id: values[1] };

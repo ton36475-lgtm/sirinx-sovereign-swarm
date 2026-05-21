@@ -2,8 +2,12 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createWebhookGateway } from "../../apps/webhook-gateway/src/server.mjs";
 
+const ADMIN_ENV = {
+  SIRINX_ADMIN_API_TOKEN: "test-admin-token"
+};
+
 test("approved draft can be queued into gated outbox without external send", async () => {
-  const gateway = createWebhookGateway();
+  const gateway = createWebhookGateway({ adminAuthEnv: ADMIN_ENV });
   await new Promise((resolve) => gateway.server.listen(0, resolve));
   const { port } = gateway.server.address();
 
@@ -40,7 +44,7 @@ test("approved draft can be queued into gated outbox without external send", asy
 });
 
 test("pending draft cannot be queued into outbox", async () => {
-  const gateway = createWebhookGateway();
+  const gateway = createWebhookGateway({ adminAuthEnv: ADMIN_ENV });
   await new Promise((resolve) => gateway.server.listen(0, resolve));
   const { port } = gateway.server.address();
 
@@ -59,7 +63,7 @@ test("pending draft cannot be queued into outbox", async () => {
 });
 
 test("outbox item can be cancelled without external send", async () => {
-  const gateway = createWebhookGateway();
+  const gateway = createWebhookGateway({ adminAuthEnv: ADMIN_ENV });
   await new Promise((resolve) => gateway.server.listen(0, resolve));
   const { port } = gateway.server.address();
 
@@ -91,7 +95,7 @@ test("outbox item can be cancelled without external send", async () => {
 });
 
 test("outbox simulate-send blocks locally and writes audit without external send", async () => {
-  const gateway = createWebhookGateway();
+  const gateway = createWebhookGateway({ adminAuthEnv: ADMIN_ENV });
   await new Promise((resolve) => gateway.server.listen(0, resolve));
   const { port } = gateway.server.address();
 
@@ -128,12 +132,14 @@ test("outbox simulate-send blocks locally and writes audit without external send
 });
 
 test("admin outbox page is served", async () => {
-  const gateway = createWebhookGateway();
+  const gateway = createWebhookGateway({ adminAuthEnv: ADMIN_ENV });
   await new Promise((resolve) => gateway.server.listen(0, resolve));
   const { port } = gateway.server.address();
 
   try {
-    const response = await fetch(`http://127.0.0.1:${port}/admin/outbox`);
+    const response = await fetch(`http://127.0.0.1:${port}/admin/outbox`, {
+      headers: adminHeaders()
+    });
     const html = await response.text();
     assert.equal(response.status, 200);
     assert.match(html, /SIRINX Reply Outbox/);
@@ -156,7 +162,9 @@ function estimatePayload() {
 }
 
 async function getJson(url) {
-  const response = await fetch(url);
+  const response = await fetch(url, {
+    headers: adminHeaders()
+  });
   return {
     statusCode: response.status,
     body: await response.json()
@@ -164,15 +172,24 @@ async function getJson(url) {
 }
 
 async function postJson(url, payload) {
+  const isAdmin = new URL(url).pathname.startsWith("/api/admin/");
   const response = await fetch(url, {
     method: "POST",
     headers: {
-      "content-type": "application/json"
+      "content-type": "application/json",
+      ...(isAdmin ? adminHeaders() : {})
     },
     body: JSON.stringify(payload)
   });
   return {
     statusCode: response.status,
     body: await response.json()
+  };
+}
+
+function adminHeaders() {
+  return {
+    "x-sirinx-admin-token": "test-admin-token",
+    "x-sirinx-admin-actor": "test-operator"
   };
 }

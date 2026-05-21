@@ -9,13 +9,18 @@ import { InMemoryEventQueue } from "../../../workers/queue-consumer/src/inMemory
 import { replayDeadLetter } from "../../../workers/queue-consumer/src/processLeadIntent.mjs";
 import { createSolarEstimate } from "../../../packages/solar-calculator/src/createSolarEstimate.mjs";
 import { simulateSendDisabledWorker } from "../../../workers/reply-send-worker/src/sendDisabledWorker.mjs";
+import {
+  adminAuthFailureBody,
+  authorizeAdminRequest
+} from "../../../packages/admin-auth/src/adminAuthGate.mjs";
 
 const STATIC_ROOT = new URL("../../www/static/", import.meta.url);
 
 export function createWebhookGateway({
   queue = new InMemoryEventQueue(),
   store = createLeadCoreStore(),
-  idempotency = new Set()
+  idempotency = new Set(),
+  adminAuthEnv = process.env
 } = {}) {
   async function handleMockWebhook(payload) {
     const event = withTraceDefaults(payload);
@@ -266,6 +271,39 @@ export function createWebhookGateway({
     };
   }
 
+  async function guardAdminRequest(request, requestUrl) {
+    const decision = authorizeAdminRequest({
+      headers: request.headers,
+      env: adminAuthEnv,
+      remoteAddress: request.socket?.remoteAddress || null
+    });
+    await recordAdminAccessDecision({
+      request,
+      requestUrl,
+      decision
+    });
+    return decision;
+  }
+
+  async function recordAdminAccessDecision({ request, requestUrl, decision }) {
+    if (!store.saveAdminAccessAuditLog) {
+      return null;
+    }
+    return store.saveAdminAccessAuditLog({
+      route: requestUrl.pathname,
+      method: request.method,
+      allowed: decision.allowed,
+      status_code: decision.allowed ? 200 : decision.statusCode,
+      reason: decision.reason,
+      actor_ref: decision.actorRef,
+      auth_mode: decision.mode,
+      metadata: {
+        token_value_printed: false,
+        local_dev_bypass_enabled: decision.authEnv.localDevBypass.enabled
+      }
+    });
+  }
+
   const server = createServer(async (request, response) => {
     try {
       const requestUrl = new URL(request.url || "/", "http://127.0.0.1");
@@ -274,12 +312,19 @@ export function createWebhookGateway({
         return sendJson(response, 200, {
           status: "ok",
           service: "webhook-gateway",
-          sprint: "6-channel-gate-simulator"
+          sprint: "7-admin-auth-boundary"
         });
       }
 
       if (request.method === "GET" && requestUrl.pathname === "/solar-calculator") {
         return sendStatic(response, "solar-calculator/index.html", "text/html; charset=utf-8");
+      }
+
+      if (isAdminPath(requestUrl.pathname)) {
+        const authDecision = await guardAdminRequest(request, requestUrl);
+        if (!authDecision.allowed) {
+          return sendJson(response, authDecision.statusCode, adminAuthFailureBody(authDecision));
+        }
       }
 
       if (request.method === "GET" && requestUrl.pathname === "/admin/reply-queue") {
@@ -403,7 +448,8 @@ export function createWebhookGateway({
     queueApprovedReplyDraft,
     listReplyOutbox,
     cancelReplyOutbox,
-    simulateReplyOutboxSend
+    simulateReplyOutboxSend,
+    guardAdminRequest
   };
 }
 
@@ -427,6 +473,12 @@ function sendJson(response, statusCode, body) {
     "content-type": "application/json; charset=utf-8"
   });
   response.end(JSON.stringify(body));
+}
+
+function isAdminPath(pathname) {
+  return pathname === "/admin"
+    || pathname.startsWith("/admin/")
+    || pathname.startsWith("/api/admin/");
 }
 
 async function sendStatic(response, fileName, contentType) {

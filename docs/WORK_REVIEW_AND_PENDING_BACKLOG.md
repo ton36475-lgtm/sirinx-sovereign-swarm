@@ -10,6 +10,7 @@
 | Sprint 4 | Human approval queue, approve/reject APIs, admin console, reply draft migration |
 | Sprint 5 | Gated reply outbox, queue/cancel APIs, admin outbox console, outbox migration |
 | Sprint 6 | Channel gate simulator, redacted LINE env inspection, send-disabled worker, blocked outbox audit |
+| Sprint 7 | Admin auth boundary, token gate, explicit local-dev bypass, admin access audit |
 
 ## Production Blockers
 
@@ -17,8 +18,8 @@
 2. Configure private database env without printing values.
 3. Run DB migration dry-run in a staging or local Supabase database.
 4. Verify rollback in staging/local DB.
-5. Add authentication for `/admin/*`.
-6. Put admin behind Cloudflare Access or equivalent.
+5. Put admin behind Cloudflare Access or equivalent.
+6. Configure private admin token/runtime env without printing values.
 7. Implement production webhook signature verification for LINE and Meta.
 8. Add rate limiting and replay protection for real webhooks.
 9. Configure LINE OA recipient/token and message send gate.
@@ -29,9 +30,9 @@
 
 ## Current Safe Next Move
 
-Build Sprint 7 as authenticated operator boundary:
+Build Sprint 8 as webhook signature and replay boundary:
 
-- add admin session/auth guard abstraction
-- keep `/admin/*` local-only until Cloudflare Access topology is confirmed
-- add tests that unauthenticated admin API calls fail closed
+- implement LINE/Meta signature verification in disabled/stub mode first
+- add timestamp/replay-window validation
+- add rate-limit abstraction for real webhook gateway
 - keep all production LINE/Facebook/webhook work disabled

@@ -407,6 +407,45 @@ export function createPostgresLeadCoreAdapter({ query, now = () => new Date() })
         JSON.stringify(metadata),
         now().toISOString()
       ]);
+    },
+
+    async saveAdminAccessAuditLog({
+      route,
+      method,
+      allowed,
+      status_code,
+      reason,
+      actor_ref = "unknown",
+      auth_mode = "blocked",
+      metadata = {}
+    }) {
+      return one(query, `
+        insert into admin_access_audit_logs (
+          id,
+          route,
+          method,
+          allowed,
+          status_code,
+          reason,
+          actor_ref,
+          auth_mode,
+          metadata,
+          created_at
+        )
+        values ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10)
+        returning *
+      `, [
+        randomUUID(),
+        route,
+        method,
+        allowed,
+        status_code,
+        reason,
+        actor_ref,
+        auth_mode,
+        JSON.stringify(metadata),
+        now().toISOString()
+      ]);
     }
   };
 }

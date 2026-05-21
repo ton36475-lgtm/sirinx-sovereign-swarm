@@ -25,8 +25,10 @@ npm run sprint3:gate
 npm run sprint4:gate
 npm run sprint5:gate
 npm run sprint6:gate
+npm run sprint7:gate
 npm run db:preflight
 npm run channel:preflight
+npm run admin-auth:preflight
 node apps/webhook-gateway/src/index.mjs
 ```
 
@@ -55,3 +57,7 @@ Gated reply outbox is documented in:
 Channel gate simulator is documented in:
 
 `docs/SPRINT6_CHANNEL_GATE_SIMULATOR.md`
+
+Admin auth boundary is documented in:
+
+`docs/SPRINT7_ADMIN_AUTH_BOUNDARY.md`
