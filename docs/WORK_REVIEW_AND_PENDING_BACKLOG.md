@@ -13,6 +13,7 @@
 | Sprint 7 | Admin auth boundary, token gate, explicit local-dev bypass, admin access audit |
 | Sprint 8 | LINE/Meta webhook signature gate, replay window, rate limiter abstraction, webhook security audit |
 | Sprint 9 | Migration readiness gate, rollback coverage inspection, signed LINE/Meta webhook smoke harness |
+| Debug Pipeline | Read-only workflow pipeline report, stage/flow map, redacted readiness state, production blocker visibility |
 
 ## Production Blockers
 
@@ -34,6 +35,7 @@
 
 Build Sprint 10 as controlled staging execution gate:
 
+- run `npm run workflow:pipeline` before every deploy discussion to confirm no safety boundary regressed
 - configure a local or staging DB target without printing credentials
 - run `npm run migration:readiness` with `SIRINX_DB_DRY_RUN_MODE=local` or `staging`
 - only then run actual DB migration dry-run in that target
