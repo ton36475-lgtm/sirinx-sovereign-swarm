@@ -51,6 +51,37 @@ test("Postgres adapter exposes DLQ lookup and replay update SQL", async () => {
   assert.equal(calls.some((call) => /update dead_letter_events/i.test(call.sql)), true);
 });
 
+test("Postgres adapter queues and cancels reply outbox with parameterized SQL", async () => {
+  const calls = [];
+  const adapter = createPostgresLeadCoreAdapter({
+    now: () => new Date("2026-05-22T00:00:00+07:00"),
+    query: async (sql, values) => {
+      calls.push({ sql, values });
+      return { rows: [rowFor(sql, values)] };
+    }
+  });
+
+  const queued = await adapter.createReplyOutboxFromApprovedDraft({
+    replyDraftId: "00000000-0000-0000-0000-000000000010",
+    channel: "line_oa",
+    queuedBy: "test-operator"
+  });
+  const cancelled = await adapter.cancelReplyOutbox({
+    outboxId: queued.id,
+    cancelledBy: "test-operator",
+    cancelReason: "test"
+  });
+
+  assert.equal(queued.status, "queued");
+  assert.equal(cancelled.status, "cancelled");
+  assert.equal(calls.some((call) => /insert into reply_outbox/i.test(call.sql)), true);
+  assert.equal(calls.some((call) => /update reply_outbox/i.test(call.sql)), true);
+  for (const call of calls) {
+    assert.equal(Array.isArray(call.values), true);
+    assert.doesNotMatch(call.sql, /\$\{/);
+  }
+});
+
 function rowFor(sql, values) {
   if (/insert into leads/i.test(sql)) {
     return { id: values[0], current_bill: values[3], target_saving: values[4] };
@@ -72,6 +103,26 @@ function rowFor(sql, values) {
   }
   if (/insert into dead_letter_events/i.test(sql)) {
     return { id: values[0], original_event_id: values[1] };
+  }
+  if (/insert into reply_outbox/i.test(sql)) {
+    return {
+      id: values[0],
+      channel: values[1],
+      queued_by: values[2],
+      reply_draft_id: values[4],
+      status: "queued",
+      external_send_allowed: false,
+      external_send_performed: false
+    };
+  }
+  if (/update reply_outbox/i.test(sql)) {
+    return {
+      id: values[0],
+      cancelled_by: values[1],
+      cancel_reason: values[2],
+      status: "cancelled",
+      external_send_performed: false
+    };
   }
   return { id: values[0] };
 }

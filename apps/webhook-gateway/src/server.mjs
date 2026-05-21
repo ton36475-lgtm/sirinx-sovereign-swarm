@@ -131,6 +131,87 @@ export function createWebhookGateway({
     };
   }
 
+  async function queueApprovedReplyDraft(replyDraftId, payload = {}) {
+    const queuedBy = payload.queued_by || payload.reviewed_by || "local-operator";
+    const channel = payload.channel || "line_oa";
+    const outbox = await store.createReplyOutboxFromApprovedDraft({
+      replyDraftId,
+      channel,
+      queuedBy
+    });
+    await store.saveAgentAuditLog({
+      agent_name: "ReplyOutbox",
+      action_type: "reply.outbox_queued",
+      lead_id: outbox.lead_id,
+      event_id: outbox.event_id,
+      model_used: "human-operator",
+      prompt_version: "sprint5-gated-outbox",
+      input: { replyDraftId, channel },
+      output: outbox,
+      approval_required: true,
+      approved_by: queuedBy,
+      metadata: {
+        external_send_allowed: false,
+        external_send_performed: false
+      }
+    });
+    return {
+      statusCode: 200,
+      body: {
+        status: "queued",
+        outbox,
+        external_send_allowed: false,
+        external_send_performed: false
+      }
+    };
+  }
+
+  async function listReplyOutbox(status = "queued") {
+    const items = store.listReplyOutbox
+      ? await store.listReplyOutbox({ status: status === "all" ? null : status })
+      : [];
+    return {
+      statusCode: 200,
+      body: {
+        status: "ok",
+        items
+      }
+    };
+  }
+
+  async function cancelReplyOutbox(outboxId, payload = {}) {
+    const cancelledBy = payload.cancelled_by || "local-operator";
+    const cancelReason = payload.cancel_reason || null;
+    const outbox = await store.cancelReplyOutbox({
+      outboxId,
+      cancelledBy,
+      cancelReason
+    });
+    await store.saveAgentAuditLog({
+      agent_name: "ReplyOutbox",
+      action_type: "reply.outbox_cancelled",
+      lead_id: outbox.lead_id,
+      event_id: outbox.event_id,
+      model_used: "human-operator",
+      prompt_version: "sprint5-gated-outbox",
+      input: { outboxId, cancelReason },
+      output: outbox,
+      approval_required: true,
+      approved_by: cancelledBy,
+      metadata: {
+        external_send_performed: false
+      }
+    });
+    return {
+      statusCode: 200,
+      body: {
+        status: "cancelled",
+        outbox,
+        external_send_performed: false
+      }
+    };
+  }
+
   const server = createServer(async (request, response) => {
     try {
       const requestUrl = new URL(request.url || "/", "http://127.0.0.1");
@@ -151,6 +232,10 @@ export function createWebhookGateway({
         return sendStatic(response, "admin-reply-queue/index.html", "text/html; charset=utf-8");
       }
 
+      if (request.method === "GET" && requestUrl.pathname === "/admin/outbox") {
+        return sendStatic(response, "admin-outbox/index.html", "text/html; charset=utf-8");
+      }
+
       if (request.method === "GET" && requestUrl.pathname === "/static/solar-calculator.css") {
         return sendStatic(response, "solar-calculator/solar-calculator.css", "text/css; charset=utf-8");
       }
@@ -165,6 +250,14 @@ export function createWebhookGateway({
 
       if (request.method === "GET" && requestUrl.pathname === "/static/admin-reply-queue.js") {
         return sendStatic(response, "admin-reply-queue/admin-reply-queue.js", "text/javascript; charset=utf-8");
+      }
+
+      if (request.method === "GET" && requestUrl.pathname === "/static/admin-outbox.css") {
+        return sendStatic(response, "admin-outbox/admin-outbox.css", "text/css; charset=utf-8");
+      }
+
+      if (request.method === "GET" && requestUrl.pathname === "/static/admin-outbox.js") {
+        return sendStatic(response, "admin-outbox/admin-outbox.js", "text/javascript; charset=utf-8");
       }
 
       if (request.method === "POST" && requestUrl.pathname === "/api/solar-estimate") {
@@ -183,6 +276,25 @@ export function createWebhookGateway({
         const payload = await readJsonBody(request);
         const reviewStatus = replyReviewMatch[2] === "approve" ? "approved" : "rejected";
         const result = await reviewReplyDraft(decodeURIComponent(replyReviewMatch[1]), reviewStatus, payload);
+        return sendJson(response, result.statusCode, result.body);
+      }
+
+      const queueSendMatch = requestUrl.pathname.match(/^\/api\/admin\/reply-drafts\/([^/]+)\/queue-send$/);
+      if (request.method === "POST" && queueSendMatch) {
+        const payload = await readJsonBody(request);
+        const result = await queueApprovedReplyDraft(decodeURIComponent(queueSendMatch[1]), payload);
+        return sendJson(response, result.statusCode, result.body);
+      }
+
+      if (request.method === "GET" && requestUrl.pathname === "/api/admin/reply-outbox") {
+        const result = await listReplyOutbox(requestUrl.searchParams.get("status") || "queued");
+        return sendJson(response, result.statusCode, result.body);
+      }
+
+      const outboxCancelMatch = requestUrl.pathname.match(/^\/api\/admin\/reply-outbox\/([^/]+)\/cancel$/);
+      if (request.method === "POST" && outboxCancelMatch) {
+        const payload = await readJsonBody(request);
+        const result = await cancelReplyOutbox(decodeURIComponent(outboxCancelMatch[1]), payload);
         return sendJson(response, result.statusCode, result.body);
       }
 
@@ -226,7 +338,10 @@ export function createWebhookGateway({
     handleDlqReplay,
     handleSolarEstimate,
     listReplyDrafts,
-    reviewReplyDraft
+    reviewReplyDraft,
+    queueApprovedReplyDraft,
+    listReplyOutbox,
+    cancelReplyOutbox
   };
 }
 

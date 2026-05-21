@@ -8,7 +8,8 @@ export function createLeadCoreStore() {
     event_processing_log: [],
     dead_letter_events: [],
     agent_audit_logs: [],
-    reply_drafts: []
+    reply_drafts: [],
+    reply_outbox: []
   };
 
   return {
@@ -119,6 +120,64 @@ export function createLeadCoreStore() {
         row.rejected_by = reviewedBy;
         row.approved_by = null;
       }
+      return row;
+    },
+    createReplyOutboxFromApprovedDraft({
+      replyDraftId,
+      channel = "line_oa",
+      queuedBy = "local-operator"
+    }) {
+      const draft = state.reply_drafts.find((item) => item.id === replyDraftId);
+      if (!draft) {
+        throw new Error(`Reply draft not found: ${replyDraftId}`);
+      }
+      if (draft.status !== "approved") {
+        throw new Error("reply draft must be approved before queueing outbox");
+      }
+      const existing = state.reply_outbox.find((item) => item.reply_draft_id === replyDraftId);
+      if (existing) {
+        return existing;
+      }
+      const row = {
+        id: randomUUID(),
+        reply_draft_id: draft.id,
+        lead_id: draft.lead_id,
+        event_id: draft.event_id,
+        channel,
+        recipient_ref: null,
+        message_text: draft.draft_reply,
+        status: "queued",
+        external_send_allowed: false,
+        external_send_performed: false,
+        queued_by: queuedBy,
+        cancelled_by: null,
+        cancel_reason: null,
+        last_error: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      state.reply_outbox.push(row);
+      return row;
+    },
+    listReplyOutbox({ status = null } = {}) {
+      return state.reply_outbox
+        .filter((row) => !status || row.status === status)
+        .map((row) => ({
+          ...row,
+          draft: state.reply_drafts.find((draft) => draft.id === row.reply_draft_id) || null,
+          lead: state.leads.find((lead) => lead.id === row.lead_id) || null
+        }))
+        .sort((a, b) => b.created_at.localeCompare(a.created_at));
+    },
+    cancelReplyOutbox({ outboxId, cancelledBy, cancelReason = null }) {
+      const row = state.reply_outbox.find((item) => item.id === outboxId);
+      if (!row) {
+        throw new Error(`Reply outbox item not found: ${outboxId}`);
+      }
+      row.status = "cancelled";
+      row.cancelled_by = cancelledBy;
+      row.cancel_reason = cancelReason;
+      row.updated_at = new Date().toISOString();
       return row;
     },
     saveProcessingLog({

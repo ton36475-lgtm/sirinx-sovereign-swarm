@@ -160,6 +160,90 @@ export function createPostgresLeadCoreAdapter({ query, now = () => new Date() })
       ]);
     },
 
+    async createReplyOutboxFromApprovedDraft({
+      replyDraftId,
+      channel = "line_oa",
+      queuedBy = "local-operator"
+    }) {
+      return one(query, `
+        insert into reply_outbox (
+          id,
+          reply_draft_id,
+          lead_id,
+          event_id,
+          channel,
+          recipient_ref,
+          message_text,
+          status,
+          external_send_allowed,
+          external_send_performed,
+          queued_by,
+          created_at,
+          updated_at
+        )
+        select $1,
+               reply_drafts.id,
+               reply_drafts.lead_id,
+               reply_drafts.event_id,
+               $2,
+               null,
+               reply_drafts.draft_reply,
+               'queued',
+               false,
+               false,
+               $3,
+               $4,
+               $4
+        from reply_drafts
+        where reply_drafts.id = $5
+          and reply_drafts.status = 'approved'
+        on conflict (reply_draft_id) do update
+          set updated_at = excluded.updated_at
+        returning *
+      `, [
+        randomUUID(),
+        channel,
+        queuedBy,
+        now().toISOString(),
+        replyDraftId
+      ]);
+    },
+
+    async listReplyOutbox({ status = null } = {}) {
+      const sql = status
+        ? `
+          select reply_outbox.*
+          from reply_outbox
+          where status = $1
+          order by created_at desc
+        `
+        : `
+          select reply_outbox.*
+          from reply_outbox
+          order by created_at desc
+        `;
+      const values = status ? [status] : [];
+      const result = await query(normalizeSql(sql), values);
+      return result?.rows || [];
+    },
+
+    async cancelReplyOutbox({ outboxId, cancelledBy, cancelReason = null }) {
+      return one(query, `
+        update reply_outbox
+        set status = 'cancelled',
+            cancelled_by = $2,
+            cancel_reason = $3,
+            updated_at = $4
+        where id = $1
+        returning *
+      `, [
+        outboxId,
+        cancelledBy,
+        cancelReason,
+        now().toISOString()
+      ]);
+    },
+
     async saveProcessingLog({
       event_id,
       source,

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SIRINX Reply Outbox</title>
+    <link rel="stylesheet" href="/static/admin-outbox.css" />
+  </head>
+  <body>
+    <main class="console">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Gated Send Layer</p>
+          <h1>Reply Outbox</h1>
+        </div>
+        <nav>
+          <a href="/admin/reply-queue">Reply Queue</a>
+          <a href="/solar-calculator">Create test lead</a>
+          <button id="refresh" type="button">Refresh</button>
+        </nav>
+      </header>
+
+      <section class="notice">
+        Outbox records are prepared for operator review only. No LINE/Facebook message is sent from this local console.
+      </section>
+
+      <section id="outbox" class="outbox" aria-live="polite">
+        <p class="empty">Loading outbox...</p>
+      </section>
+    </main>
+
+    <script type="module" src="/static/admin-outbox.js"></script>
+  </body>
+</html>
