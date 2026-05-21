@@ -446,6 +446,57 @@ export function createPostgresLeadCoreAdapter({ query, now = () => new Date() })
         JSON.stringify(metadata),
         now().toISOString()
       ]);
+    },
+
+    async saveWebhookSecurityAuditLog({
+      provider,
+      route,
+      method,
+      allowed,
+      status_code,
+      reason,
+      signature_valid = false,
+      replay_valid = false,
+      rate_limited = false,
+      idempotency_key_hash = null,
+      remote_ref = "unknown",
+      metadata = {}
+    }) {
+      return one(query, `
+        insert into webhook_security_audit_logs (
+          id,
+          provider,
+          route,
+          method,
+          allowed,
+          status_code,
+          reason,
+          signature_valid,
+          replay_valid,
+          rate_limited,
+          idempotency_key_hash,
+          remote_ref,
+          metadata,
+          created_at
+        )
+        values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb, $14)
+        returning *
+      `, [
+        randomUUID(),
+        provider,
+        route,
+        method,
+        allowed,
+        status_code,
+        reason,
+        signature_valid,
+        replay_valid,
+        rate_limited,
+        idempotency_key_hash,
+        remote_ref,
+        JSON.stringify(metadata),
+        now().toISOString()
+      ]);
     }
   };
 }

@@ -145,6 +145,45 @@ test("Postgres adapter writes admin access audit without token values", async ()
   }
 });
 
+test("Postgres adapter writes webhook security audit without raw body, signature, or secret", async () => {
+  const calls = [];
+  const adapter = createPostgresLeadCoreAdapter({
+    now: () => new Date("2026-05-22T00:00:00+07:00"),
+    query: async (sql, values) => {
+      calls.push({ sql, values });
+      return { rows: [rowFor(sql, values)] };
+    }
+  });
+
+  const audit = await adapter.saveWebhookSecurityAuditLog({
+    provider: "line",
+    route: "/webhooks/line",
+    method: "POST",
+    allowed: true,
+    status_code: 202,
+    reason: "verified_processing_disabled",
+    signature_valid: true,
+    replay_valid: true,
+    rate_limited: false,
+    idempotency_key_hash: "hash-only",
+    remote_ref: "remote-present",
+    metadata: {
+      raw_body_stored: false,
+      signature_value_stored: false,
+      secret_value_printed: false
+    }
+  });
+
+  assert.equal(audit.provider, "line");
+  assert.equal(audit.reason, "verified_processing_disabled");
+  assert.equal(calls.some((call) => /insert into webhook_security_audit_logs/i.test(call.sql)), true);
+  for (const call of calls) {
+    assert.equal(Array.isArray(call.values), true);
+    assert.doesNotMatch(call.sql, /\$\{/);
+    assert.doesNotMatch(JSON.stringify(call.values), /line-test-secret|x-line-signature|"\{\"events\"\:\[\]\}"/);
+  }
+});
+
 function rowFor(sql, values) {
   if (/insert into leads/i.test(sql)) {
     return { id: values[0], current_bill: values[3], target_saving: values[4] };
@@ -174,6 +213,20 @@ function rowFor(sql, values) {
       reason: values[5],
       actor_ref: values[6],
       auth_mode: values[7]
+    };
+  }
+  if (/insert into webhook_security_audit_logs/i.test(sql)) {
+    return {
+      id: values[0],
+      provider: values[1],
+      route: values[2],
+      method: values[3],
+      allowed: values[4],
+      status_code: values[5],
+      reason: values[6],
+      signature_valid: values[7],
+      replay_valid: values[8],
+      rate_limited: values[9]
     };
   }
   if (/insert into dead_letter_events/i.test(sql)) {

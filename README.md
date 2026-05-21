@@ -26,9 +26,11 @@ npm run sprint4:gate
 npm run sprint5:gate
 npm run sprint6:gate
 npm run sprint7:gate
+npm run sprint8:gate
 npm run db:preflight
 npm run channel:preflight
 npm run admin-auth:preflight
+npm run webhook-security:preflight
 node apps/webhook-gateway/src/index.mjs
 ```
 
@@ -61,3 +63,7 @@ Channel gate simulator is documented in:
 Admin auth boundary is documented in:
 
 `docs/SPRINT7_ADMIN_AUTH_BOUNDARY.md`
+
+Webhook signature/replay boundary is documented in:
+
+`docs/SPRINT8_WEBHOOK_SECURITY_BOUNDARY.md`

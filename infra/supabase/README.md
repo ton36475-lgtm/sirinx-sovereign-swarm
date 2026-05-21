@@ -10,6 +10,7 @@ Sprint 3 prepares database persistence but does not run migrations automatically
 4. `004_reply_outbox_gated_send.sql`
 5. `005_reply_outbox_channel_gate.sql`
 6. `006_admin_access_audit.sql`
+7. `007_webhook_security_audit.sql`
 
 ## Access Model
 
@@ -32,11 +33,16 @@ The preflight checks only for presence and never prints values:
 - `SIRINX_EXTERNAL_SENDS_ENABLED=true` only after explicit production approval
 - `SIRINX_ADMIN_API_TOKEN` only in backend/admin runtime
 - `SIRINX_ADMIN_LOCAL_DEV_BYPASS=false` in production
+- `SIRINX_LINE_CHANNEL_SECRET` only in webhook gateway runtime
+- `SIRINX_META_APP_SECRET` only in webhook gateway runtime
+- `SIRINX_SOCIAL_WEBHOOK_PROCESSING_ENABLED=false` until signed production smoke is approved
+- `SIRINX_WEBHOOK_REPLAY_WINDOW_SECONDS=300`
 
 ## Preflight
 
 ```bash
 npm run db:preflight
+npm run webhook-security:preflight
 ```
 
 The command validates environment readiness and migration guardrails without attempting a network connection.

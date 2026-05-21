@@ -13,6 +13,10 @@ import {
   adminAuthFailureBody,
   authorizeAdminRequest
 } from "../../../packages/admin-auth/src/adminAuthGate.mjs";
+import {
+  createInMemoryRateLimiter,
+  evaluateSocialWebhookRequest
+} from "../../../packages/webhook-security/src/webhookSecurityGate.mjs";
 
 const STATIC_ROOT = new URL("../../www/static/", import.meta.url);
 
@@ -20,7 +24,10 @@ export function createWebhookGateway({
   queue = new InMemoryEventQueue(),
   store = createLeadCoreStore(),
   idempotency = new Set(),
-  adminAuthEnv = process.env
+  adminAuthEnv = process.env,
+  webhookSecurityEnv = process.env,
+  webhookReplayCache = new Set(),
+  webhookRateLimiter = createInMemoryRateLimiter()
 } = {}) {
   async function handleMockWebhook(payload) {
     const event = withTraceDefaults(payload);
@@ -304,6 +311,71 @@ export function createWebhookGateway({
     });
   }
 
+  async function handleSocialWebhook(provider, rawBody, request, requestUrl) {
+    const decision = evaluateSocialWebhookRequest({
+      provider,
+      rawBody,
+      headers: request.headers,
+      env: webhookSecurityEnv,
+      replayStore: webhookReplayCache,
+      rateLimiter: webhookRateLimiter,
+      remoteAddress: request.socket?.remoteAddress || null
+    });
+
+    await recordWebhookSecurityDecision({
+      provider,
+      request,
+      requestUrl,
+      decision
+    });
+
+    return {
+      statusCode: decision.statusCode,
+      body: {
+        status: decision.allowed ? decision.reason : "blocked",
+        provider,
+        reason: decision.reason,
+        queued: false,
+        processing_enabled: decision.processing_enabled,
+        production_ready: decision.production_ready,
+        signature_valid: decision.signature_valid,
+        replay_valid: decision.replay_valid,
+        rate_limited: decision.reason === "rate_limited",
+        raw_body_stored: false,
+        signature_value_stored: false,
+        secret_value_printed: false
+      }
+    };
+  }
+
+  async function recordWebhookSecurityDecision({ provider, request, requestUrl, decision }) {
+    if (!store.saveWebhookSecurityAuditLog) {
+      return null;
+    }
+
+    return store.saveWebhookSecurityAuditLog({
+      provider,
+      route: requestUrl.pathname,
+      method: request.method,
+      allowed: decision.allowed,
+      status_code: decision.statusCode,
+      reason: decision.reason,
+      signature_valid: decision.signature_valid,
+      replay_valid: decision.replay_valid,
+      rate_limited: decision.reason === "rate_limited",
+      idempotency_key_hash: decision.replay_key_hash,
+      remote_ref: request.socket?.remoteAddress ? "remote-present" : "unknown",
+      metadata: {
+        processing_enabled: decision.processing_enabled,
+        production_ready: decision.production_ready,
+        queued: false,
+        raw_body_stored: false,
+        signature_value_stored: false,
+        secret_value_printed: false
+      }
+    });
+  }
+
   const server = createServer(async (request, response) => {
     try {
       const requestUrl = new URL(request.url || "/", "http://127.0.0.1");
@@ -312,7 +384,7 @@ export function createWebhookGateway({
         return sendJson(response, 200, {
           status: "ok",
           service: "webhook-gateway",
-          sprint: "7-admin-auth-boundary"
+          sprint: "8-webhook-security-boundary"
         });
       }
 
@@ -411,10 +483,10 @@ export function createWebhookGateway({
       }
 
       if (request.method === "POST" && ["/webhooks/line", "/webhooks/meta"].includes(requestUrl.pathname)) {
-        return sendJson(response, 501, {
-          status: "not_enabled_in_sprint_1",
-          reason: "Production social webhook integration is blocked until signature verification and platform credentials are explicitly configured."
-        });
+        const rawBody = await readRawBody(request);
+        const provider = requestUrl.pathname === "/webhooks/line" ? "line" : "meta";
+        const result = await handleSocialWebhook(provider, rawBody, request, requestUrl);
+        return sendJson(response, result.statusCode, result.body);
       }
 
       const replayMatch = requestUrl.pathname.match(/^\/dlq\/replay\/([^/]+)$/);
@@ -449,7 +521,8 @@ export function createWebhookGateway({
     listReplyOutbox,
     cancelReplyOutbox,
     simulateReplyOutboxSend,
-    guardAdminRequest
+    guardAdminRequest,
+    handleSocialWebhook
   };
 }
 
@@ -460,12 +533,16 @@ export function startWebhookGateway({ port = 8787 } = {}) {
 }
 
 async function readJsonBody(request) {
+  const raw = await readRawBody(request);
+  return raw.length > 0 ? JSON.parse(raw.toString("utf8")) : {};
+}
+
+async function readRawBody(request) {
   const chunks = [];
   for await (const chunk of request) {
     chunks.push(chunk);
   }
-  const raw = Buffer.concat(chunks).toString("utf8");
-  return raw ? JSON.parse(raw) : {};
+  return Buffer.concat(chunks);
 }
 
 function sendJson(response, statusCode, body) {

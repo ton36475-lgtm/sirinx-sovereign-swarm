@@ -9,6 +9,7 @@ export function createLeadCoreStore() {
     dead_letter_events: [],
     agent_audit_logs: [],
     admin_access_audit_logs: [],
+    webhook_security_audit_logs: [],
     reply_drafts: [],
     reply_outbox: []
   };
@@ -305,6 +306,39 @@ export function createLeadCoreStore() {
         created_at: new Date().toISOString()
       };
       state.admin_access_audit_logs.push(row);
+      return row;
+    },
+    saveWebhookSecurityAuditLog({
+      provider,
+      route,
+      method,
+      allowed,
+      status_code,
+      reason,
+      signature_valid = false,
+      replay_valid = false,
+      rate_limited = false,
+      idempotency_key_hash = null,
+      remote_ref = "unknown",
+      metadata = {}
+    }) {
+      const row = {
+        id: randomUUID(),
+        provider,
+        route,
+        method,
+        allowed,
+        status_code,
+        reason,
+        signature_valid,
+        replay_valid,
+        rate_limited,
+        idempotency_key_hash,
+        remote_ref,
+        metadata,
+        created_at: new Date().toISOString()
+      };
+      state.webhook_security_audit_logs.push(row);
       return row;
     }
   };

@@ -11,6 +11,7 @@
 | Sprint 5 | Gated reply outbox, queue/cancel APIs, admin outbox console, outbox migration |
 | Sprint 6 | Channel gate simulator, redacted LINE env inspection, send-disabled worker, blocked outbox audit |
 | Sprint 7 | Admin auth boundary, token gate, explicit local-dev bypass, admin access audit |
+| Sprint 8 | LINE/Meta webhook signature gate, replay window, rate limiter abstraction, webhook security audit |
 
 ## Production Blockers
 
@@ -20,8 +21,8 @@
 4. Verify rollback in staging/local DB.
 5. Put admin behind Cloudflare Access or equivalent.
 6. Configure private admin token/runtime env without printing values.
-7. Implement production webhook signature verification for LINE and Meta.
-8. Add rate limiting and replay protection for real webhooks.
+7. Configure production LINE/Meta webhook secrets without printing values.
+8. Run signed webhook smoke tests in staging before enabling production processing.
 9. Configure LINE OA recipient/token and message send gate.
 10. Add a send worker that can only send approved outbox items.
 11. Add production smoke tests that prove `external_send_performed` only changes after real send response.
@@ -30,9 +31,9 @@
 
 ## Current Safe Next Move
 
-Build Sprint 8 as webhook signature and replay boundary:
+Build Sprint 9 as staging database and signed webhook readiness gate:
 
-- implement LINE/Meta signature verification in disabled/stub mode first
-- add timestamp/replay-window validation
-- add rate-limit abstraction for real webhook gateway
-- keep all production LINE/Facebook/webhook work disabled
+- run Supabase migration dry-run in a local/staging database
+- verify rollback files against the same database class
+- add signed webhook smoke harness that can run without printing secrets
+- keep `SIRINX_SOCIAL_WEBHOOK_PROCESSING_ENABLED=false` until human approval

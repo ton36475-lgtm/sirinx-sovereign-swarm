@@ -12,6 +12,7 @@ test("migration guardrails pass with RLS migration present", () => {
   assert.equal(result.files.includes("004_reply_outbox_gated_send.sql"), true);
   assert.equal(result.files.includes("005_reply_outbox_channel_gate.sql"), true);
   assert.equal(result.files.includes("006_admin_access_audit.sql"), true);
+  assert.equal(result.files.includes("007_webhook_security_audit.sql"), true);
 });
 
 test("RLS migration revokes direct public roles and enables forced RLS", () => {
@@ -60,6 +61,19 @@ test("admin access audit migration is backend-only with forced RLS", () => {
   assert.match(sql, /grant select, insert, update, delete on table admin_access_audit_logs to service_role/i);
   assert.match(sql, /alter table admin_access_audit_logs force row level security/i);
   assert.match(sql, /never stores admin token values/i);
+});
+
+test("webhook security audit migration is backend-only and stores no raw webhook material", () => {
+  const sql = readFileSync(
+    new URL("../../infra/supabase/migrations/007_webhook_security_audit.sql", import.meta.url),
+    "utf8"
+  );
+  assert.match(sql, /create table if not exists webhook_security_audit_logs/i);
+  assert.match(sql, /provider text not null check \(provider in \('line', 'meta'\)\)/i);
+  assert.match(sql, /revoke all on table webhook_security_audit_logs from anon, authenticated/i);
+  assert.match(sql, /grant select, insert, update, delete on table webhook_security_audit_logs to service_role/i);
+  assert.match(sql, /alter table webhook_security_audit_logs force row level security/i);
+  assert.match(sql, /never stores raw request bodies, raw signatures, or secret values/i);
 });
 
 test("reply draft migration creates backend-only approval queue with RLS", () => {

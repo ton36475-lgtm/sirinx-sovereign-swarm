@@ -7,7 +7,7 @@ console.log(JSON.stringify({
   status: "listening",
   service: "webhook-gateway",
   port,
-  social_webhooks: "disabled_in_sprint_1",
+  social_webhooks: "verify_then_disabled_in_sprint_8",
   bueng_phra_inbound: "not_exposed"
 }));
 
