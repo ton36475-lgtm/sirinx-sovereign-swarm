@@ -109,6 +109,9 @@ export function createLeadCoreStore() {
       state.dead_letter_events.push(row);
       return row;
     },
+    getDeadLetterById(deadLetterId) {
+      return state.dead_letter_events.find((item) => item.id === deadLetterId) || null;
+    },
     markDeadLetterReplayed({ deadLetterId, replayedBy }) {
       const row = state.dead_letter_events.find((item) => item.id === deadLetterId);
       if (!row) {

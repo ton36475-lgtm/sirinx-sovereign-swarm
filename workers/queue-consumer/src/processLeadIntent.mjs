@@ -22,10 +22,10 @@ export async function processLeadIntent(message, { store, pricingConfig = loadOp
     opal_match: opalMatch,
     pricing_config: pricingConfig
   });
-  const lead = store.createLeadFromEvent(event);
-  store.saveLeadEvent({ lead_id: lead.id, event });
-  store.saveSolarEstimate({ lead_id: lead.id, opalMatch, packageInfo });
-  store.saveAgentAuditLog({
+  const lead = await store.createLeadFromEvent(event);
+  await store.saveLeadEvent({ lead_id: lead.id, event });
+  await store.saveSolarEstimate({ lead_id: lead.id, opalMatch, packageInfo });
+  await store.saveAgentAuditLog({
     agent_name: "Hermes",
     action_type: "reply.draft_created",
     lead_id: lead.id,
@@ -40,7 +40,7 @@ export async function processLeadIntent(message, { store, pricingConfig = loadOp
       recommended_tier: opalMatch.recommended_tier
     }
   });
-  store.saveProcessingLog({
+  await store.saveProcessingLog({
     event_id: event.event_id,
     source: event.source,
     status: "processed",
@@ -72,7 +72,7 @@ export async function processWithRetries(
       return await processLeadIntent(message, { store, pricingConfig });
     } catch (error) {
       lastError = error;
-      store.saveProcessingLog({
+      await store.saveProcessingLog({
         event_id: message.event_id,
         source: message.source,
         status: "failed",
@@ -83,12 +83,12 @@ export async function processWithRetries(
     }
   }
 
-  const deadLetter = store.createDeadLetter({
+  const deadLetter = await store.createDeadLetter({
     message,
     failureReason: lastError?.message || "unknown",
     retryCount: maxRetries
   });
-  store.saveAgentAuditLog({
+  await store.saveAgentAuditLog({
     agent_name: "DLQ",
     action_type: "dlq.event_created",
     event_id: message.event_id,
@@ -118,7 +118,9 @@ export async function replayDeadLetter(
     patchPayload = { force_error: false }
   }
 ) {
-  const deadLetter = store.state.dead_letter_events.find((item) => item.id === deadLetterId);
+  const deadLetter = store.getDeadLetterById
+    ? await store.getDeadLetterById(deadLetterId)
+    : store.state.dead_letter_events.find((item) => item.id === deadLetterId);
   if (!deadLetter) {
     throw new Error(`Dead letter not found: ${deadLetterId}`);
   }
@@ -134,8 +136,8 @@ export async function replayDeadLetter(
     pricingConfig
   });
 
-  const replayed = store.markDeadLetterReplayed({ deadLetterId, replayedBy });
-  store.saveAgentAuditLog({
+  const replayed = await store.markDeadLetterReplayed({ deadLetterId, replayedBy });
+  await store.saveAgentAuditLog({
     agent_name: "DLQ",
     action_type: "dlq.event_replayed",
     event_id: deadLetter.original_event_id,

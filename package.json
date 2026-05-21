@@ -1,13 +1,15 @@
 {
   "name": "sirinx-sovereign-swarm",
-  "version": "2.1.0-sprint1",
+  "version": "2.1.0-sprint3-local",
   "private": true,
   "type": "module",
   "scripts": {
     "test": "node --test",
+    "db:preflight": "node scripts/db-preflight.mjs",
     "sprint1:dry-run": "node tests/lead-flow-e2e/dry-run.test.mjs",
     "sprint1:gate": "node --test tests/opal-pricing/*.test.mjs tests/prompt-injection/*.test.mjs tests/queue-dlq/*.test.mjs tests/line-handoff/*.test.mjs tests/lead-flow-e2e/*.test.mjs",
-    "sprint2:gate": "node --test tests/opal-pricing/*.test.mjs tests/prompt-injection/*.test.mjs tests/queue-dlq/*.test.mjs tests/line-handoff/*.test.mjs tests/lead-flow-e2e/*.test.mjs tests/solar-calculator/*.test.mjs"
+    "sprint2:gate": "node --test tests/opal-pricing/*.test.mjs tests/prompt-injection/*.test.mjs tests/queue-dlq/*.test.mjs tests/line-handoff/*.test.mjs tests/lead-flow-e2e/*.test.mjs tests/solar-calculator/*.test.mjs",
+    "sprint3:gate": "node --test tests/opal-pricing/*.test.mjs tests/prompt-injection/*.test.mjs tests/queue-dlq/*.test.mjs tests/line-handoff/*.test.mjs tests/lead-flow-e2e/*.test.mjs tests/solar-calculator/*.test.mjs tests/db-gate/*.test.mjs && node scripts/db-preflight.mjs"
   },
   "engines": {
     "node": ">=20"
