@@ -22,6 +22,7 @@ npm test
 npm run sprint1:gate
 npm run sprint2:gate
 npm run sprint3:gate
+npm run sprint4:gate
 npm run db:preflight
 node apps/webhook-gateway/src/index.mjs
 ```
@@ -32,8 +33,13 @@ Open the local calculator after starting the gateway:
 
 ```text
 http://127.0.0.1:8787/solar-calculator
+http://127.0.0.1:8787/admin/reply-queue
 ```
 
 Database persistence preparation is documented in:
 
 `docs/SPRINT3_DB_PERSISTENCE_GATE.md`
+
+Human approval queue is documented in:
+
+`docs/SPRINT4_HUMAN_APPROVAL_QUEUE.md`

@@ -58,6 +58,7 @@ export async function createSolarEstimate(input, { gateway }) {
       status: "estimate_created",
       event_id: event.event_id,
       lead_id: result.lead_id,
+      reply_draft_id: result.reply_draft_id,
       recommended_tier: result.opal_match.recommended_tier,
       opal_pricing_version: result.opal_match.opal_pricing_version,
       confidence: result.opal_match.confidence,

@@ -25,6 +25,9 @@ export async function processLeadIntent(message, { store, pricingConfig = loadOp
   const lead = await store.createLeadFromEvent(event);
   await store.saveLeadEvent({ lead_id: lead.id, event });
   await store.saveSolarEstimate({ lead_id: lead.id, opalMatch, packageInfo });
+  const replyDraft = store.saveReplyDraft
+    ? await store.saveReplyDraft({ lead_id: lead.id, event_id: event.event_id, hermesDraft })
+    : null;
   await store.saveAgentAuditLog({
     agent_name: "Hermes",
     action_type: "reply.draft_created",
@@ -53,7 +56,8 @@ export async function processLeadIntent(message, { store, pricingConfig = loadOp
     status: "processed",
     lead_id: lead.id,
     opal_match: opalMatch,
-    hermes_draft: hermesDraft
+    hermes_draft: hermesDraft,
+    reply_draft_id: replyDraft?.id || null
   };
 }
 

@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SIRINX Hermes Reply Queue</title>
+    <link rel="stylesheet" href="/static/admin-reply-queue.css" />
+  </head>
+  <body>
+    <main class="console">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Hermes Human Approval</p>
+          <h1>Reply Queue</h1>
+        </div>
+        <nav>
+          <a href="/solar-calculator">Create test lead</a>
+          <button id="refresh" type="button">Refresh</button>
+        </nav>
+      </header>
+
+      <section class="metrics" aria-label="queue metrics">
+        <div>
+          <span id="pending-count">0</span>
+          <small>Pending</small>
+        </div>
+        <div>
+          <span id="approved-count">0</span>
+          <small>Approved</small>
+        </div>
+        <div>
+          <span id="rejected-count">0</span>
+          <small>Rejected</small>
+        </div>
+      </section>
+
+      <section id="queue" class="queue" aria-live="polite">
+        <p class="empty">Loading queue...</p>
+      </section>
+    </main>
+
+    <script type="module" src="/static/admin-reply-queue.js"></script>
+  </body>
+</html>

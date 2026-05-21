@@ -91,6 +91,75 @@ export function createPostgresLeadCoreAdapter({ query, now = () => new Date() })
       ]);
     },
 
+    async saveReplyDraft({ lead_id, event_id, hermesDraft }) {
+      return one(query, `
+        insert into reply_drafts (
+          id,
+          lead_id,
+          event_id,
+          draft_reply,
+          intent_score,
+          recommended_tier,
+          risk_level,
+          status,
+          approval_required,
+          created_at,
+          updated_at
+        )
+        values ($1, $2, $3, $4, $5, $6, $7, 'pending', true, $8, $8)
+        returning *
+      `, [
+        randomUUID(),
+        lead_id,
+        event_id,
+        hermesDraft.draft_reply,
+        hermesDraft.intent_score,
+        hermesDraft.recommended_tier,
+        hermesDraft.risk_level,
+        now().toISOString()
+      ]);
+    },
+
+    async listReplyDrafts({ status = null } = {}) {
+      const sql = status
+        ? `
+          select reply_drafts.*
+          from reply_drafts
+          where status = $1
+          order by created_at desc
+        `
+        : `
+          select reply_drafts.*
+          from reply_drafts
+          order by created_at desc
+        `;
+      const values = status ? [status] : [];
+      const result = await query(normalizeSql(sql), values);
+      return result?.rows || [];
+    },
+
+    async updateReplyDraftStatus({ replyDraftId, status, reviewedBy, reviewNote = null }) {
+      if (!["approved", "rejected"].includes(status)) {
+        throw new Error("reply draft status must be approved or rejected");
+      }
+      const reviewerColumn = status === "approved" ? "approved_by" : "rejected_by";
+      return one(query, `
+        update reply_drafts
+        set status = $2,
+            ${reviewerColumn} = $3,
+            review_note = $4,
+            updated_at = $5
+        where id = $1
+        returning *
+      `, [
+        replyDraftId,
+        status,
+        reviewedBy,
+        reviewNote,
+        now().toISOString()
+      ]);
+    },
+
     async saveProcessingLog({
       event_id,
       source,

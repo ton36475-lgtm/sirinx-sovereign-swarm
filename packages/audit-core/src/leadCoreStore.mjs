@@ -7,7 +7,8 @@ export function createLeadCoreStore() {
     lead_events: [],
     event_processing_log: [],
     dead_letter_events: [],
-    agent_audit_logs: []
+    agent_audit_logs: [],
+    reply_drafts: []
   };
 
   return {
@@ -68,6 +69,56 @@ export function createLeadCoreStore() {
         created_at: new Date().toISOString()
       };
       state.solar_estimates.push(row);
+      return row;
+    },
+    saveReplyDraft({ lead_id, event_id, hermesDraft }) {
+      const row = {
+        id: randomUUID(),
+        lead_id,
+        event_id,
+        draft_reply: hermesDraft.draft_reply,
+        intent_score: hermesDraft.intent_score,
+        recommended_tier: hermesDraft.recommended_tier,
+        risk_level: hermesDraft.risk_level,
+        status: "pending",
+        approval_required: true,
+        approved_by: null,
+        rejected_by: null,
+        review_note: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      state.reply_drafts.push(row);
+      return row;
+    },
+    listReplyDrafts({ status = null } = {}) {
+      return state.reply_drafts
+        .filter((row) => !status || row.status === status)
+        .map((row) => ({
+          ...row,
+          lead: state.leads.find((lead) => lead.id === row.lead_id) || null,
+          estimate: state.solar_estimates.find((estimate) => estimate.lead_id === row.lead_id) || null
+        }))
+        .sort((a, b) => b.created_at.localeCompare(a.created_at));
+    },
+    updateReplyDraftStatus({ replyDraftId, status, reviewedBy, reviewNote = null }) {
+      if (!["approved", "rejected"].includes(status)) {
+        throw new Error("reply draft status must be approved or rejected");
+      }
+      const row = state.reply_drafts.find((item) => item.id === replyDraftId);
+      if (!row) {
+        throw new Error(`Reply draft not found: ${replyDraftId}`);
+      }
+      row.status = status;
+      row.review_note = reviewNote;
+      row.updated_at = new Date().toISOString();
+      if (status === "approved") {
+        row.approved_by = reviewedBy;
+        row.rejected_by = null;
+      } else {
+        row.rejected_by = reviewedBy;
+        row.approved_by = null;
+      }
       return row;
     },
     saveProcessingLog({

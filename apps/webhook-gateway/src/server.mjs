@@ -84,6 +84,53 @@ export function createWebhookGateway({
     });
   }
 
+  async function listReplyDrafts(status = "pending") {
+    const drafts = store.listReplyDrafts
+      ? await store.listReplyDrafts({ status: status === "all" ? null : status })
+      : [];
+    return {
+      statusCode: 200,
+      body: {
+        status: "ok",
+        drafts
+      }
+    };
+  }
+
+  async function reviewReplyDraft(replyDraftId, reviewStatus, payload = {}) {
+    const reviewedBy = payload.reviewed_by || "local-operator";
+    const reviewNote = payload.review_note || null;
+    const draft = await store.updateReplyDraftStatus({
+      replyDraftId,
+      status: reviewStatus,
+      reviewedBy,
+      reviewNote
+    });
+    await store.saveAgentAuditLog({
+      agent_name: "HumanApproval",
+      action_type: reviewStatus === "approved" ? "reply.approved" : "reply.rejected",
+      lead_id: draft.lead_id,
+      event_id: draft.event_id,
+      model_used: "human-operator",
+      prompt_version: "sprint4-human-approval",
+      input: { replyDraftId, reviewStatus, reviewNote },
+      output: draft,
+      approval_required: false,
+      approved_by: reviewedBy,
+      metadata: {
+        external_send_performed: false
+      }
+    });
+    return {
+      statusCode: 200,
+      body: {
+        status: reviewStatus,
+        draft,
+        external_send_performed: false
+      }
+    };
+  }
+
   const server = createServer(async (request, response) => {
     try {
       const requestUrl = new URL(request.url || "/", "http://127.0.0.1");
@@ -100,6 +147,10 @@ export function createWebhookGateway({
         return sendStatic(response, "solar-calculator/index.html", "text/html; charset=utf-8");
       }
 
+      if (request.method === "GET" && requestUrl.pathname === "/admin/reply-queue") {
+        return sendStatic(response, "admin-reply-queue/index.html", "text/html; charset=utf-8");
+      }
+
       if (request.method === "GET" && requestUrl.pathname === "/static/solar-calculator.css") {
         return sendStatic(response, "solar-calculator/solar-calculator.css", "text/css; charset=utf-8");
       }
@@ -108,9 +159,30 @@ export function createWebhookGateway({
         return sendStatic(response, "solar-calculator/solar-calculator.js", "text/javascript; charset=utf-8");
       }
 
+      if (request.method === "GET" && requestUrl.pathname === "/static/admin-reply-queue.css") {
+        return sendStatic(response, "admin-reply-queue/admin-reply-queue.css", "text/css; charset=utf-8");
+      }
+
+      if (request.method === "GET" && requestUrl.pathname === "/static/admin-reply-queue.js") {
+        return sendStatic(response, "admin-reply-queue/admin-reply-queue.js", "text/javascript; charset=utf-8");
+      }
+
       if (request.method === "POST" && requestUrl.pathname === "/api/solar-estimate") {
         const payload = await readJsonBody(request);
         const result = await handleSolarEstimate(payload);
+        return sendJson(response, result.statusCode, result.body);
+      }
+
+      if (request.method === "GET" && requestUrl.pathname === "/api/admin/reply-drafts") {
+        const result = await listReplyDrafts(requestUrl.searchParams.get("status") || "pending");
+        return sendJson(response, result.statusCode, result.body);
+      }
+
+      const replyReviewMatch = requestUrl.pathname.match(/^\/api\/admin\/reply-drafts\/([^/]+)\/(approve|reject)$/);
+      if (request.method === "POST" && replyReviewMatch) {
+        const payload = await readJsonBody(request);
+        const reviewStatus = replyReviewMatch[2] === "approve" ? "approved" : "rejected";
+        const result = await reviewReplyDraft(decodeURIComponent(replyReviewMatch[1]), reviewStatus, payload);
         return sendJson(response, result.statusCode, result.body);
       }
 
@@ -152,7 +224,9 @@ export function createWebhookGateway({
     idempotency,
     handleMockWebhook,
     handleDlqReplay,
-    handleSolarEstimate
+    handleSolarEstimate,
+    listReplyDrafts,
+    reviewReplyDraft
   };
 }
 

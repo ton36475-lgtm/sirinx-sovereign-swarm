@@ -26,6 +26,7 @@ test("Postgres adapter uses parameterized SQL for processing path", async () => 
     assert.doesNotMatch(call.sql, /\$\{/);
   }
   assert.equal(calls.some((call) => /insert into leads/i.test(call.sql)), true);
+  assert.equal(calls.some((call) => /insert into reply_drafts/i.test(call.sql)), true);
   assert.equal(calls.some((call) => /insert into agent_audit_logs/i.test(call.sql)), true);
 });
 
@@ -59,6 +60,9 @@ function rowFor(sql, values) {
   }
   if (/insert into solar_estimates/i.test(sql)) {
     return { id: values[0], lead_id: values[1], recommended_tier: values[3] };
+  }
+  if (/insert into reply_drafts/i.test(sql)) {
+    return { id: values[0], lead_id: values[1], event_id: values[2], status: "pending" };
   }
   if (/insert into event_processing_log/i.test(sql)) {
     return { id: values[0], event_id: values[1], status: values[3] };
