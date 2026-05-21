@@ -9,6 +9,7 @@
 | Sprint 3 | Postgres adapter contract, DB env preflight, migration validator, RLS migration and rollback |
 | Sprint 4 | Human approval queue, approve/reject APIs, admin console, reply draft migration |
 | Sprint 5 | Gated reply outbox, queue/cancel APIs, admin outbox console, outbox migration |
+| Sprint 6 | Channel gate simulator, redacted LINE env inspection, send-disabled worker, blocked outbox audit |
 
 ## Production Blockers
 
@@ -28,9 +29,9 @@
 
 ## Current Safe Next Move
 
-Build Sprint 6 as a channel-gate simulator:
+Build Sprint 7 as authenticated operator boundary:
 
-- verify required LINE env presence without printing values
-- validate recipient allowlist shape
-- add `send-disabled` worker that refuses external writes
-- add tests proving unapproved or unqueued items cannot be sent
+- add admin session/auth guard abstraction
+- keep `/admin/*` local-only until Cloudflare Access topology is confirmed
+- add tests that unauthenticated admin API calls fail closed
+- keep all production LINE/Facebook/webhook work disabled

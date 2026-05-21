@@ -6,6 +6,9 @@ Sprint 3 prepares database persistence but does not run migrations automatically
 
 1. `001_lead_core_minimal.sql`
 2. `002_lead_core_rls_policies.sql`
+3. `003_reply_draft_approval_queue.sql`
+4. `004_reply_outbox_gated_send.sql`
+5. `005_reply_outbox_channel_gate.sql`
 
 ## Access Model
 
@@ -23,6 +26,9 @@ The preflight checks only for presence and never prints values:
 
 - `SIRINX_DATABASE_URL`
 - `SIRINX_DB_SSL_MODE=require` or `verify-full`
+- `SIRINX_LINE_CHANNEL_ACCESS_TOKEN` only in the production channel runtime
+- `SIRINX_LINE_ALLOWED_RECIPIENTS` only in the production channel runtime
+- `SIRINX_EXTERNAL_SENDS_ENABLED=true` only after explicit production approval
 
 ## Preflight
 

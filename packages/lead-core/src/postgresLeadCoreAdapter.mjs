@@ -163,7 +163,8 @@ export function createPostgresLeadCoreAdapter({ query, now = () => new Date() })
     async createReplyOutboxFromApprovedDraft({
       replyDraftId,
       channel = "line_oa",
-      queuedBy = "local-operator"
+      queuedBy = "local-operator",
+      recipientRef = null
     }) {
       return one(query, `
         insert into reply_outbox (
@@ -186,16 +187,16 @@ export function createPostgresLeadCoreAdapter({ query, now = () => new Date() })
                reply_drafts.lead_id,
                reply_drafts.event_id,
                $2,
-               null,
+               $3,
                reply_drafts.draft_reply,
                'queued',
                false,
                false,
-               $3,
+               $5,
                $4,
                $4
         from reply_drafts
-        where reply_drafts.id = $5
+        where reply_drafts.id = $6
           and reply_drafts.status = 'approved'
         on conflict (reply_draft_id) do update
           set updated_at = excluded.updated_at
@@ -203,9 +204,21 @@ export function createPostgresLeadCoreAdapter({ query, now = () => new Date() })
       `, [
         randomUUID(),
         channel,
-        queuedBy,
+        recipientRef,
         now().toISOString(),
+        queuedBy,
         replyDraftId
+      ]);
+    },
+
+    async getReplyOutboxById(outboxId) {
+      return one(query, `
+        select *
+        from reply_outbox
+        where id = $1
+        limit 1
+      `, [
+        outboxId
       ]);
     },
 
@@ -240,6 +253,23 @@ export function createPostgresLeadCoreAdapter({ query, now = () => new Date() })
         outboxId,
         cancelledBy,
         cancelReason,
+        now().toISOString()
+      ]);
+    },
+
+    async markReplyOutboxBlocked({ outboxId, blockedBy, blockedReason }) {
+      return one(query, `
+        update reply_outbox
+        set status = 'blocked',
+            blocked_by = $2,
+            last_error = $3,
+            updated_at = $4
+        where id = $1
+        returning *
+      `, [
+        outboxId,
+        blockedBy,
+        blockedReason,
         now().toISOString()
       ]);
     },

@@ -125,7 +125,8 @@ export function createLeadCoreStore() {
     createReplyOutboxFromApprovedDraft({
       replyDraftId,
       channel = "line_oa",
-      queuedBy = "local-operator"
+      queuedBy = "local-operator",
+      recipientRef = null
     }) {
       const draft = state.reply_drafts.find((item) => item.id === replyDraftId);
       if (!draft) {
@@ -144,12 +145,13 @@ export function createLeadCoreStore() {
         lead_id: draft.lead_id,
         event_id: draft.event_id,
         channel,
-        recipient_ref: null,
+        recipient_ref: recipientRef,
         message_text: draft.draft_reply,
         status: "queued",
         external_send_allowed: false,
         external_send_performed: false,
         queued_by: queuedBy,
+        blocked_by: null,
         cancelled_by: null,
         cancel_reason: null,
         last_error: null,
@@ -158,6 +160,9 @@ export function createLeadCoreStore() {
       };
       state.reply_outbox.push(row);
       return row;
+    },
+    getReplyOutboxById(outboxId) {
+      return state.reply_outbox.find((item) => item.id === outboxId) || null;
     },
     listReplyOutbox({ status = null } = {}) {
       return state.reply_outbox
@@ -178,6 +183,19 @@ export function createLeadCoreStore() {
       row.cancelled_by = cancelledBy;
       row.cancel_reason = cancelReason;
       row.updated_at = new Date().toISOString();
+      return row;
+    },
+    markReplyOutboxBlocked({ outboxId, blockedBy, blockedReason }) {
+      const row = state.reply_outbox.find((item) => item.id === outboxId);
+      if (!row) {
+        throw new Error(`Reply outbox item not found: ${outboxId}`);
+      }
+      row.status = "blocked";
+      row.last_error = blockedReason;
+      row.cancelled_by = null;
+      row.cancel_reason = null;
+      row.updated_at = new Date().toISOString();
+      row.blocked_by = blockedBy;
       return row;
     },
     saveProcessingLog({

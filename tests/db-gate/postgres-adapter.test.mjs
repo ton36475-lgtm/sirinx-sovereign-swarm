@@ -64,7 +64,8 @@ test("Postgres adapter queues and cancels reply outbox with parameterized SQL", 
   const queued = await adapter.createReplyOutboxFromApprovedDraft({
     replyDraftId: "00000000-0000-0000-0000-000000000010",
     channel: "line_oa",
-    queuedBy: "test-operator"
+    queuedBy: "test-operator",
+    recipientRef: "line_user:U1234567890"
   });
   const cancelled = await adapter.cancelReplyOutbox({
     outboxId: queued.id,
@@ -73,9 +74,38 @@ test("Postgres adapter queues and cancels reply outbox with parameterized SQL", 
   });
 
   assert.equal(queued.status, "queued");
+  assert.equal(queued.recipient_ref, "line_user:U1234567890");
   assert.equal(cancelled.status, "cancelled");
   assert.equal(calls.some((call) => /insert into reply_outbox/i.test(call.sql)), true);
   assert.equal(calls.some((call) => /update reply_outbox/i.test(call.sql)), true);
+  for (const call of calls) {
+    assert.equal(Array.isArray(call.values), true);
+    assert.doesNotMatch(call.sql, /\$\{/);
+  }
+});
+
+test("Postgres adapter can lookup and block reply outbox with parameterized SQL", async () => {
+  const calls = [];
+  const adapter = createPostgresLeadCoreAdapter({
+    now: () => new Date("2026-05-22T00:00:00+07:00"),
+    query: async (sql, values) => {
+      calls.push({ sql, values });
+      return { rows: [rowFor(sql, values)] };
+    }
+  });
+
+  const item = await adapter.getReplyOutboxById("00000000-0000-0000-0000-000000000011");
+  const blocked = await adapter.markReplyOutboxBlocked({
+    outboxId: item.id,
+    blockedBy: "test-operator",
+    blockedReason: "send_disabled_worker_no_external_writes"
+  });
+
+  assert.equal(item.id, "00000000-0000-0000-0000-000000000011");
+  assert.equal(blocked.status, "blocked");
+  assert.equal(blocked.blocked_by, "test-operator");
+  assert.equal(calls.some((call) => /from reply_outbox/i.test(call.sql)), true);
+  assert.equal(calls.some((call) => /update reply_outbox/i.test(call.sql) && /status = 'blocked'/i.test(call.sql)), true);
   for (const call of calls) {
     assert.equal(Array.isArray(call.values), true);
     assert.doesNotMatch(call.sql, /\$\{/);
@@ -108,14 +138,32 @@ function rowFor(sql, values) {
     return {
       id: values[0],
       channel: values[1],
-      queued_by: values[2],
-      reply_draft_id: values[4],
+      recipient_ref: values[2],
+      queued_by: values[4],
+      reply_draft_id: values[5],
+      status: "queued",
+      external_send_allowed: false,
+      external_send_performed: false
+    };
+  }
+  if (/from reply_outbox/i.test(sql)) {
+    return {
+      id: values[0],
       status: "queued",
       external_send_allowed: false,
       external_send_performed: false
     };
   }
   if (/update reply_outbox/i.test(sql)) {
+    if (/status = 'blocked'/i.test(sql)) {
+      return {
+        id: values[0],
+        blocked_by: values[1],
+        last_error: values[2],
+        status: "blocked",
+        external_send_performed: false
+      };
+    }
     return {
       id: values[0],
       cancelled_by: values[1],

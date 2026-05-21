@@ -90,6 +90,43 @@ test("outbox item can be cancelled without external send", async () => {
   }
 });
 
+test("outbox simulate-send blocks locally and writes audit without external send", async () => {
+  const gateway = createWebhookGateway();
+  await new Promise((resolve) => gateway.server.listen(0, resolve));
+  const { port } = gateway.server.address();
+
+  try {
+    const estimate = await postJson(`http://127.0.0.1:${port}/api/solar-estimate`, estimatePayload());
+    const draftId = estimate.body.reply_draft_id;
+    await postJson(`http://127.0.0.1:${port}/api/admin/reply-drafts/${draftId}/approve`, {
+      reviewed_by: "test-operator"
+    });
+    const queued = await postJson(`http://127.0.0.1:${port}/api/admin/reply-drafts/${draftId}/queue-send`, {
+      queued_by: "test-operator",
+      recipient_ref: "line_user:U1234567890"
+    });
+    const blocked = await postJson(`http://127.0.0.1:${port}/api/admin/reply-outbox/${queued.body.outbox.id}/simulate-send`, {
+      simulated_by: "test-operator"
+    });
+
+    assert.equal(blocked.statusCode, 200);
+    assert.equal(blocked.body.status, "blocked");
+    assert.equal(blocked.body.external_send_performed, false);
+    assert.equal(blocked.body.outbox.status, "blocked");
+    assert.equal(blocked.body.outbox.external_send_performed, false);
+    assert.equal(
+      blocked.body.simulation.blockedReasons.includes("send_disabled_worker_no_external_writes"),
+      true
+    );
+    assert.equal(
+      gateway.store.state.agent_audit_logs.some((row) => row.action_type === "reply.send_blocked"),
+      true
+    );
+  } finally {
+    await new Promise((resolve) => gateway.server.close(resolve));
+  }
+});
+
 test("admin outbox page is served", async () => {
   const gateway = createWebhookGateway();
   await new Promise((resolve) => gateway.server.listen(0, resolve));
@@ -101,6 +138,7 @@ test("admin outbox page is served", async () => {
     assert.equal(response.status, 200);
     assert.match(html, /SIRINX Reply Outbox/);
     assert.match(html, /Gated Send Layer/);
+    assert.match(html, /No LINE\/Facebook message is sent/);
   } finally {
     await new Promise((resolve) => gateway.server.close(resolve));
   }

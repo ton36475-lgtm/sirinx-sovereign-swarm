@@ -125,6 +125,24 @@ button {
   color: var(--red);
 }
 
+.simulate {
+  color: var(--gold);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.error {
+  margin: 0;
+  color: var(--red);
+  font-size: 13px;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
 .empty {
   color: var(--muted);
 }

@@ -4,10 +4,15 @@ const refreshButton = document.querySelector("#refresh");
 refreshButton.addEventListener("click", loadOutbox);
 outbox.addEventListener("click", async (event) => {
   const id = event.target?.dataset?.id;
+  const action = event.target?.dataset?.action;
   if (!id) {
     return;
   }
-  await cancelOutbox(id);
+  if (action === "simulate-send") {
+    await simulateSend(id);
+  } else {
+    await cancelOutbox(id);
+  }
   await loadOutbox();
 });
 
@@ -43,6 +48,22 @@ async function cancelOutbox(id) {
   }
 }
 
+async function simulateSend(id) {
+  const response = await fetch(`/api/admin/reply-outbox/${encodeURIComponent(id)}/simulate-send`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({
+      simulated_by: "local-operator"
+    })
+  });
+  if (!response.ok) {
+    const data = await response.json();
+    throw new Error(data.message || data.status || "simulate send failed");
+  }
+}
+
 function renderItem(item) {
   return `
     <article class="outbox-card">
@@ -55,8 +76,15 @@ function renderItem(item) {
         <span>channel: ${escapeHtml(item.channel)}</span>
         <span>allowed: ${escapeHtml(item.external_send_allowed)}</span>
         <span>sent: ${escapeHtml(item.external_send_performed)}</span>
+        <span>recipient: ${item.recipient_ref ? "present" : "missing"}</span>
       </div>
-      ${item.status === "queued" ? `<button class="cancel" data-id="${escapeAttribute(item.id)}" type="button">Cancel outbox item</button>` : ""}
+      ${item.last_error ? `<p class="error">${escapeHtml(item.last_error)}</p>` : ""}
+      ${item.status === "queued" ? `
+        <div class="actions">
+          <button class="simulate" data-action="simulate-send" data-id="${escapeAttribute(item.id)}" type="button">Run channel gate</button>
+          <button class="cancel" data-action="cancel" data-id="${escapeAttribute(item.id)}" type="button">Cancel outbox item</button>
+        </div>
+      ` : ""}
     </article>
   `;
 }

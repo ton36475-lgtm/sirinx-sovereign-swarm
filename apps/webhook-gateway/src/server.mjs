@@ -8,6 +8,7 @@ import {
 import { InMemoryEventQueue } from "../../../workers/queue-consumer/src/inMemoryQueue.mjs";
 import { replayDeadLetter } from "../../../workers/queue-consumer/src/processLeadIntent.mjs";
 import { createSolarEstimate } from "../../../packages/solar-calculator/src/createSolarEstimate.mjs";
+import { simulateSendDisabledWorker } from "../../../workers/reply-send-worker/src/sendDisabledWorker.mjs";
 
 const STATIC_ROOT = new URL("../../www/static/", import.meta.url);
 
@@ -134,10 +135,12 @@ export function createWebhookGateway({
   async function queueApprovedReplyDraft(replyDraftId, payload = {}) {
     const queuedBy = payload.queued_by || payload.reviewed_by || "local-operator";
     const channel = payload.channel || "line_oa";
+    const recipientRef = payload.recipient_ref || null;
     const outbox = await store.createReplyOutboxFromApprovedDraft({
       replyDraftId,
       channel,
-      queuedBy
+      queuedBy,
+      recipientRef
     });
     await store.saveAgentAuditLog({
       agent_name: "ReplyOutbox",
@@ -146,7 +149,7 @@ export function createWebhookGateway({
       event_id: outbox.event_id,
       model_used: "human-operator",
       prompt_version: "sprint5-gated-outbox",
-      input: { replyDraftId, channel },
+      input: { replyDraftId, channel, recipient_ref_present: Boolean(recipientRef) },
       output: outbox,
       approval_required: true,
       approved_by: queuedBy,
@@ -161,6 +164,57 @@ export function createWebhookGateway({
         status: "queued",
         outbox,
         external_send_allowed: false,
+        external_send_performed: false
+      }
+    };
+  }
+
+  async function simulateReplyOutboxSend(outboxId, payload = {}) {
+    const simulatedBy = payload.simulated_by || "local-operator";
+    const outboxItem = store.getReplyOutboxById
+      ? await store.getReplyOutboxById(outboxId)
+      : null;
+    if (!outboxItem) {
+      throw new Error(`Reply outbox item not found: ${outboxId}`);
+    }
+
+    const simulation = simulateSendDisabledWorker(outboxItem, {
+      env: process.env
+    });
+    const blockedReason = simulation.blockedReasons.join(",");
+    const outbox = await store.markReplyOutboxBlocked({
+      outboxId,
+      blockedBy: simulatedBy,
+      blockedReason
+    });
+    await store.saveAgentAuditLog({
+      agent_name: "ReplySendWorker",
+      action_type: "reply.send_blocked",
+      lead_id: outbox.lead_id,
+      event_id: outbox.event_id,
+      model_used: "send-disabled-local-simulator",
+      prompt_version: "sprint6-channel-gate",
+      input: {
+        outboxId,
+        channel: outbox.channel,
+        recipient_ref_present: Boolean(outbox.recipient_ref)
+      },
+      output: simulation,
+      approval_required: true,
+      approved_by: simulatedBy,
+      metadata: {
+        external_send_performed: false,
+        blocked_reasons: simulation.blockedReasons,
+        line_env_production_ready: simulation.lineEnv.productionReady
+      }
+    });
+
+    return {
+      statusCode: 200,
+      body: {
+        status: "blocked",
+        outbox,
+        simulation,
         external_send_performed: false
       }
     };
@@ -220,7 +274,7 @@ export function createWebhookGateway({
         return sendJson(response, 200, {
           status: "ok",
           service: "webhook-gateway",
-          sprint: "2-local-proof"
+          sprint: "6-channel-gate-simulator"
         });
       }
 
@@ -298,6 +352,13 @@ export function createWebhookGateway({
         return sendJson(response, result.statusCode, result.body);
       }
 
+      const outboxSimulateSendMatch = requestUrl.pathname.match(/^\/api\/admin\/reply-outbox\/([^/]+)\/simulate-send$/);
+      if (request.method === "POST" && outboxSimulateSendMatch) {
+        const payload = await readJsonBody(request);
+        const result = await simulateReplyOutboxSend(decodeURIComponent(outboxSimulateSendMatch[1]), payload);
+        return sendJson(response, result.statusCode, result.body);
+      }
+
       if (request.method === "POST" && requestUrl.pathname === "/webhooks/mock") {
         const payload = await readJsonBody(request);
         const result = await handleMockWebhook(payload);
@@ -341,7 +402,8 @@ export function createWebhookGateway({
     reviewReplyDraft,
     queueApprovedReplyDraft,
     listReplyOutbox,
-    cancelReplyOutbox
+    cancelReplyOutbox,
+    simulateReplyOutboxSend
   };
 }
 
