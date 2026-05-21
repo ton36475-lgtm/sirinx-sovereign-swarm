@@ -20,7 +20,14 @@ Sprint 1 local-first implementation for the event pipeline:
 ```bash
 npm test
 npm run sprint1:gate
+npm run sprint2:gate
 node apps/webhook-gateway/src/index.mjs
 ```
 
 This repository intentionally uses Node built-ins for Sprint 1 so the gate can run without dependency installation.
+
+Open the local calculator after starting the gateway:
+
+```text
+http://127.0.0.1:8787/solar-calculator
+```

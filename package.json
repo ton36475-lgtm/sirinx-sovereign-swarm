@@ -6,7 +6,8 @@
   "scripts": {
     "test": "node --test",
     "sprint1:dry-run": "node tests/lead-flow-e2e/dry-run.test.mjs",
-    "sprint1:gate": "node --test tests/opal-pricing/*.test.mjs tests/prompt-injection/*.test.mjs tests/queue-dlq/*.test.mjs tests/line-handoff/*.test.mjs tests/lead-flow-e2e/*.test.mjs"
+    "sprint1:gate": "node --test tests/opal-pricing/*.test.mjs tests/prompt-injection/*.test.mjs tests/queue-dlq/*.test.mjs tests/line-handoff/*.test.mjs tests/lead-flow-e2e/*.test.mjs",
+    "sprint2:gate": "node --test tests/opal-pricing/*.test.mjs tests/prompt-injection/*.test.mjs tests/queue-dlq/*.test.mjs tests/line-handoff/*.test.mjs tests/lead-flow-e2e/*.test.mjs tests/solar-calculator/*.test.mjs"
   },
   "engines": {
     "node": ">=20"

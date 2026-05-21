@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SIRINX OPAL Solar Estimate</title>
+    <link rel="stylesheet" href="/static/solar-calculator.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <div>
+          <p class="eyebrow">OPAL Static Estimate</p>
+          <h1>ประเมินระบบโซลาร์เบื้องต้น</h1>
+          <p class="lede">สำหรับบ้านขนาดใหญ่ โฮมออฟฟิศ ร้านค้า และธุรกิจที่ต้องการเริ่มประเมินจากค่าไฟจริง</p>
+        </div>
+        <div class="status-strip" aria-label="system guardrails">
+          <span>OPAL pricing</span>
+          <span>Human approval</span>
+          <span>No guaranteed savings</span>
+        </div>
+      </section>
+
+      <section class="workspace">
+        <form id="estimate-form" class="panel" autocomplete="off">
+          <div class="field-grid">
+            <label>
+              ค่าไฟปัจจุบัน / เดือน
+              <input name="current_bill" type="number" min="0" step="100" value="4000" inputmode="numeric" />
+            </label>
+            <label>
+              เป้าหมายลดค่าไฟ / เดือน
+              <input name="target_saving" type="number" min="0" step="100" placeholder="เช่น 2000" inputmode="numeric" />
+            </label>
+            <label>
+              ประเภทอาคาร
+              <select name="customer_type">
+                <option value="home">บ้านพักอาศัย</option>
+                <option value="home_office" selected>โฮมออฟฟิศ</option>
+                <option value="shop">ร้านค้า</option>
+                <option value="office">ออฟฟิศ</option>
+                <option value="sme">SME</option>
+                <option value="factory">โรงงาน</option>
+                <option value="industrial">อุตสาหกรรม</option>
+                <option value="unknown">ยังไม่แน่ใจ</option>
+              </select>
+            </label>
+            <label>
+              รูปแบบการใช้ไฟ
+              <select name="usage_pattern">
+                <option value="daytime_heavy" selected>ใช้ไฟกลางวันมาก</option>
+                <option value="mixed">ใช้ไฟกลางวันและกลางคืนผสมกัน</option>
+                <option value="nighttime_heavy">ใช้ไฟกลางคืนมาก</option>
+                <option value="unknown">ยังไม่แน่ใจ</option>
+              </select>
+            </label>
+            <label>
+              ระบบไฟ
+              <select name="phase_type">
+                <option value="unknown" selected>ยังไม่แน่ใจ</option>
+                <option value="single_phase">Single phase</option>
+                <option value="three_phase">Three phase</option>
+              </select>
+            </label>
+            <label>
+              จังหวัด
+              <input name="province" type="text" value="phitsanulok" />
+            </label>
+          </div>
+
+          <div class="consent-row">
+            <input id="consent" name="consent" type="checkbox" required />
+            <label for="consent">ยินยอมให้สร้าง lead สำหรับการประเมินเบื้องต้น</label>
+          </div>
+
+          <button class="primary-action" type="submit">สร้างผลประเมิน</button>
+        </form>
+
+        <section id="result" class="panel result-panel" aria-live="polite">
+          <p class="empty-state">ผลประเมินจะแสดงหลังส่งข้อมูล</p>
+        </section>
+      </section>
+    </main>
+
+    <script src="/static/solar-calculator.js" type="module"></script>
+  </body>
+</html>

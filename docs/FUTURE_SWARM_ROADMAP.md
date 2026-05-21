@@ -31,3 +31,9 @@ Sprint 1 must pass before these phases start.
 - rate-limit abuse
 - DLQ failure
 - PII leakage
+
+## Current Progress
+
+- Phase 1 reliability baseline is complete locally.
+- Phase 2 local calculator proof is complete locally for context-only estimate data and LINE handoff URL generation.
+- Production LINE/Facebook/Supabase integration remains intentionally blocked until signature verification, secrets, consent, and DB gates are configured.

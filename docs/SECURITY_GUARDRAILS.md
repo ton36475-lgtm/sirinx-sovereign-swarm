@@ -19,6 +19,10 @@
 
 `/webhooks/line` and `/webhooks/meta` return `501 not_enabled_in_sprint_1`.
 
+## Sprint 2 Local Calculator Boundary
+
+`/api/solar-estimate` accepts estimate context only and creates a local dry-run event through the existing queue and audit path. It does not collect direct PII, does not create a final quotation, and does not send an external LINE message. The returned LINE URL is a handoff link for the human operator/customer action.
+
 ## Prompt Injection
 
 Detected injection routes to `human_review_only` with `risk_level = high`.
