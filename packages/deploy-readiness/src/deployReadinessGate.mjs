@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
+import { buildRuntimeEnvContractReport } from "../../runtime-env-contract/src/runtimeEnvContract.mjs";
 import { buildWorkflowPipelineReport } from "../../workflow-pipeline/src/workflowPipelineMap.mjs";
 import { buildStagingNetworkSmokePlan } from "./stagingNetworkSmoke.mjs";
 
@@ -32,16 +33,22 @@ export function buildDeployReadinessReport({
   const pagesRoutes = inspectPagesRoutes({
     routesPath
   });
+  const runtimeEnvContract = buildRuntimeEnvContractReport({
+    env,
+    rootDir
+  });
   const networkSmoke = buildStagingNetworkSmokePlan({ env });
   const workflow = buildWorkflowPipelineReport({ env });
-  const configReady = wrangler.ok && apiProxy.ok && pagesRoutes.ok;
+  const configReady = wrangler.ok && apiProxy.ok && pagesRoutes.ok && runtimeEnvContract.contractReady;
   const productionReady = configReady
+    && runtimeEnvContract.runtimeReady
     && networkSmoke.ready
     && workflow.productionReady;
   const blockers = [
     ...wrangler.findings,
     ...apiProxy.findings,
     ...pagesRoutes.findings,
+    ...runtimeEnvContract.blockers.map((blocker) => `runtime_env_contract:${blocker}`),
     ...networkSmoke.missing,
     ...workflow.blockedComponents.map((component) => `workflow_blocked:${component}`)
   ];
@@ -55,6 +62,15 @@ export function buildDeployReadinessReport({
     wrangler,
     apiProxy,
     pagesRoutes,
+    runtimeEnvContract: {
+      status: runtimeEnvContract.status,
+      contractReady: runtimeEnvContract.contractReady,
+      runtimeReady: runtimeEnvContract.runtimeReady,
+      productionReady: runtimeEnvContract.productionReady,
+      blockers: runtimeEnvContract.blockers,
+      validation: runtimeEnvContract.validation,
+      guardrail: runtimeEnvContract.guardrail
+    },
     networkSmoke,
     workflow: {
       status: workflow.status,
@@ -267,7 +283,10 @@ export function validateDeployReadinessReport(report) {
   ) {
     findings.push("secret_value_print_regressed");
   }
-  if (report.configReady !== (report.wrangler.ok && report.apiProxy.ok && report.pagesRoutes.ok)) {
+  if (report.runtimeEnvContract.validation.ok !== true) {
+    findings.push("runtime_env_contract_validation_failed");
+  }
+  if (report.configReady !== (report.wrangler.ok && report.apiProxy.ok && report.pagesRoutes.ok && report.runtimeEnvContract.contractReady)) {
     findings.push("config_ready_mismatch");
   }
   return {

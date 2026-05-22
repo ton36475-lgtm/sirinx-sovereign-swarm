@@ -2,6 +2,7 @@ import { inspectAdminAuthEnv } from "../../admin-auth/src/adminAuthGate.mjs";
 import { inspectLineChannelEnv } from "../../channel-gate/src/lineChannelGate.mjs";
 import { inspectDbEnv } from "../../lead-core/src/dbEnvGate.mjs";
 import { buildMigrationReadinessReport } from "../../migration-readiness/src/migrationReadinessGate.mjs";
+import { buildRuntimeEnvContractReport } from "../../runtime-env-contract/src/runtimeEnvContract.mjs";
 import { inspectWebhookSecurityEnv } from "../../webhook-security/src/webhookSecurityGate.mjs";
 
 export const PIPELINE_STAGES = [
@@ -126,8 +127,19 @@ export const PIPELINE_STAGES = [
     status: "validate-only-by-default"
   },
   {
-    id: "deploy-readiness",
+    id: "runtime-env-contract",
     order: 110,
+    name: "Runtime Environment Contract",
+    component: ".env.example + wrangler.jsonc + Pages Functions + packages/runtime-env-contract",
+    type: "deployment-gate",
+    routes: [],
+    scripts: ["npm run runtime-env:contract", "npm run sprint12:gate"],
+    guards: ["public_vars_only_in_wrangler", "private_runtime_env_redacted", "static_secret_scan"],
+    status: "contract-ready-runtime-env-blocked"
+  },
+  {
+    id: "deploy-readiness",
+    order: 120,
     name: "Deploy Readiness Gate",
     component: "wrangler.jsonc + functions/api/[[path]].js + packages/deploy-readiness",
     type: "deployment-gate",
@@ -138,7 +150,7 @@ export const PIPELINE_STAGES = [
   },
   {
     id: "staging-network-smoke",
-    order: 120,
+    order: 130,
     name: "Staging Network Smoke Gate",
     component: "packages/deploy-readiness/src/stagingNetworkSmoke.mjs",
     type: "deployment-gate",
@@ -265,6 +277,21 @@ export const PIPELINE_FLOWS = [
     externalWrite: false
   },
   {
+    id: "runtime-env-contract",
+    name: "Runtime Environment Contract",
+    currentMode: "read-only-local",
+    steps: [
+      "wrangler_public_vars_contract",
+      "env_example_private_placeholders_blank",
+      "public_static_secret_reference_scan",
+      "pages_function_allowed_env_scan",
+      "runtime_env_presence_redacted",
+      "safe_default_flags_check"
+    ],
+    terminal: "blocked_until_private_runtime_env_present",
+    externalWrite: false
+  },
+  {
     id: "deploy-readiness",
     name: "Deploy Readiness",
     currentMode: "read-only-local",
@@ -309,6 +336,7 @@ export const PRODUCTION_BLOCKERS = [
   "Configure private admin token/runtime env without printing values.",
   "Configure production LINE/Meta webhook secrets without printing values.",
   "Run signed webhook smoke tests against staging origin before enabling production processing.",
+  "Run runtime environment contract gate after setting private runtime env in the hosting target.",
   "Run deploy readiness and staging network smoke after Node backend origin is reachable.",
   "Configure LINE OA recipient/token and message send gate.",
   "Add a send worker that can only send approved outbox items.",
@@ -325,10 +353,11 @@ export const PIPELINE_COMMANDS = [
   "npm run admin-auth:preflight",
   "npm run webhook-security:preflight",
   "npm run migration:readiness",
+  "npm run runtime-env:contract",
   "npm run webhook:smoke:signed",
   "npm run deploy:readiness",
   "npm run staging:smoke",
-  "npm run sprint11:gate"
+  "npm run sprint12:gate"
 ];
 
 export function buildWorkflowPipelineReport({ env = process.env } = {}) {
@@ -337,6 +366,7 @@ export function buildWorkflowPipelineReport({ env = process.env } = {}) {
   const admin = inspectAdminAuthEnv(env);
   const webhookSecurity = inspectWebhookSecurityEnv(env);
   const migration = buildMigrationReadinessReport({ env });
+  const runtimeEnvContract = buildRuntimeEnvContractReport({ env });
 
   const readiness = {
     db,
@@ -354,6 +384,15 @@ export function buildWorkflowPipelineReport({ env = process.env } = {}) {
         ...migration.migrations.findings,
         ...migration.plan.findings
       ]
+    },
+    runtimeEnvContract: {
+      status: runtimeEnvContract.status,
+      contractReady: runtimeEnvContract.contractReady,
+      runtimeReady: runtimeEnvContract.runtimeReady,
+      productionReady: runtimeEnvContract.productionReady,
+      blockerCount: runtimeEnvContract.blockers.length,
+      validation: runtimeEnvContract.validation,
+      guardrail: runtimeEnvContract.guardrail
     }
   };
   const blockedComponents = Object.entries(readiness)
@@ -379,6 +418,7 @@ export function buildWorkflowPipelineReport({ env = process.env } = {}) {
       productionSocialProcessingEnabled: webhookSecurity.processing.enabled,
       externalSendsEnabled: line.externalSendsEnabled,
       databaseMutationAllowed: migration.dryRun.wouldRunDatabaseMutation,
+      runtimeEnvContractReady: runtimeEnvContract.contractReady,
       buengPhraPublicInbound: false,
       externalWritesPerformedByReport: false
     }
@@ -403,6 +443,7 @@ export function validateWorkflowPipelineReport(report) {
     "reply-outbox",
     "social-webhook-security",
     "migration-readiness",
+    "runtime-env-contract",
     "deploy-readiness",
     "staging-network-smoke"
   ];

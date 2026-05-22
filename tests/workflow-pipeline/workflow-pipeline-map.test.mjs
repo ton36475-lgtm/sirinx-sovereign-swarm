@@ -20,6 +20,7 @@ test("workflow pipeline map contains every implemented safety-critical stage", (
     "reply-outbox",
     "social-webhook-security",
     "migration-readiness",
+    "runtime-env-contract",
     "deploy-readiness",
     "staging-network-smoke"
   ]);
@@ -63,6 +64,8 @@ test("pipeline report is redacted even when env contains real-looking secret val
 
   assert.equal(report.validation.ok, true);
   assert.equal(report.productionReady, false);
+  assert.equal(report.readiness.runtimeEnvContract.runtimeReady, true);
+  assert.equal(report.readiness.runtimeEnvContract.contractReady, true);
   assert.equal(report.invariants.externalWritesPerformedByReport, false);
   assert.equal(body.includes("very-secret-password"), false);
   assert.equal(body.includes("admin-secret-token-that-must-not-print"), false);

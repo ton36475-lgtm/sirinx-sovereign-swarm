@@ -44,6 +44,18 @@ flowchart TD
   L --> M["Send-disabled worker"]
 ```
 
+## Deployment Boundary Flow
+
+```mermaid
+flowchart TD
+  A["wrangler.jsonc public vars"] --> B["Runtime env contract"]
+  B --> C["Pages /api/* proxy check"]
+  C --> D["Migration readiness"]
+  D --> E["Deploy readiness"]
+  E --> F["Staging network smoke"]
+  F --> G["Production still blocked until target env and human approval"]
+```
+
 ## Security Boundary Flow
 
 ```mermaid
@@ -71,4 +83,4 @@ flowchart TD
 
 ## Production Rule
 
-Production remains blocked until the report returns `productionReady=true`, a real staging DB dry-run has passed with rollback verification, admin access is behind the approved boundary, and LINE/Meta/LINE OA runtime secrets are configured without printing values.
+Production remains blocked until the report returns `productionReady=true`, `npm run runtime-env:contract` passes against the target runtime env, a real staging DB dry-run has passed with rollback verification, admin access is behind the approved boundary, and LINE/Meta/LINE OA runtime secrets are configured without printing values.

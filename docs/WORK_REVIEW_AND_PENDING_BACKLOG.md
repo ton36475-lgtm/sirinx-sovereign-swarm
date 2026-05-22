@@ -16,6 +16,7 @@
 | Debug Pipeline | Read-only workflow pipeline report, stage/flow map, redacted readiness state, production blocker visibility |
 | Sprint 10 | Cloudflare Pages config, `/api/*` Pages proxy to Node backend origin, deploy readiness gate |
 | Sprint 11 | Pages `_routes.json` `/api/*` invocation boundary and disabled-by-default staging network smoke harness |
+| Sprint 12 | Runtime environment contract, public/private env split, `.env.example` placeholder audit, static/function secret scan |
 
 ## Production Blockers
 
@@ -26,18 +27,20 @@
 5. Put admin behind Cloudflare Access or equivalent.
 6. Configure private admin token/runtime env without printing values.
 7. Configure production LINE/Meta webhook secrets without printing values.
-8. Run signed webhook smoke tests against staging origin before enabling production processing.
-9. Configure LINE OA recipient/token and message send gate.
-10. Add a send worker that can only send approved outbox items.
-11. Add production smoke tests that prove `external_send_performed` only changes after real send response.
-12. Add proposal PDF as draft-only output after approval.
-13. Add Ghost Claw only as design draft with engineer review.
+8. Run `npm run runtime-env:contract` after private runtime env exists in the target runtime.
+9. Run signed webhook smoke tests against staging origin before enabling production processing.
+10. Configure LINE OA recipient/token and message send gate.
+11. Add a send worker that can only send approved outbox items.
+12. Add production smoke tests that prove `external_send_performed` only changes after real send response.
+13. Add proposal PDF as draft-only output after approval.
+14. Add Ghost Claw only as design draft with engineer review.
 
 ## Current Safe Next Move
 
 Run the Sprint 10 controlled staging/deploy readiness sequence:
 
 - run `npm run workflow:pipeline` before every deploy discussion to confirm no safety boundary regressed
+- run `npm run runtime-env:contract` to confirm public vars and private runtime env stay separated
 - run `npm run deploy:readiness` to confirm Cloudflare Pages config and Node backend origin proxy boundaries
 - run `npm run staging:smoke`; it should skip until staging origin and smoke approval env are present
 - configure a local or staging DB target without printing credentials

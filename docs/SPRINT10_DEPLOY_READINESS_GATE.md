@@ -10,6 +10,7 @@ Implemented locally:
 - Pages Function proxy skeleton at `functions/api/[[path]].js`
 - Node backend origin strategy through `SIRINX_API_ORIGIN`
 - read-only deploy readiness report
+- runtime environment contract linkage from Sprint 12
 - deploy readiness tests
 - updated Sprint 10 gate
 
@@ -55,6 +56,7 @@ npm run sprint10:gate
 - social webhook processing and external sends remain disabled in config
 - Pages Function proxy exists and uses only `SIRINX_API_ORIGIN`
 - Pages `_routes.json` invokes Functions only for `/api/*`
+- runtime environment contract is structurally ready and private values are not printed
 - network smoke remains disabled unless explicitly enabled
 - workflow pipeline still reports no external writes
 

@@ -18,6 +18,8 @@ test("deploy readiness config is valid but production remains blocked without ru
   assert.equal(report.productionReady, false);
   assert.equal(report.hostingStrategy, "node-backend-origin");
   assert.equal(report.pagesRoutes.ok, true);
+  assert.equal(report.runtimeEnvContract.contractReady, true);
+  assert.equal(report.runtimeEnvContract.runtimeReady, false);
   assert.equal(report.networkSmoke.missing.includes("SIRINX_DEPLOY_NETWORK_SMOKE_ALLOWED=true"), true);
   assert.equal(report.workflow.productionReady, false);
   assert.equal(report.guardrail.includes("no secret values printed"), true);
