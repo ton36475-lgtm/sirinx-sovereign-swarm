@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   buildDeployReadinessReport,
+  inspectPagesRoutes,
   inspectWranglerConfig
 } from "../../packages/deploy-readiness/src/deployReadinessGate.mjs";
 import {
@@ -16,9 +17,18 @@ test("deploy readiness config is valid but production remains blocked without ru
   assert.equal(report.configReady, true);
   assert.equal(report.productionReady, false);
   assert.equal(report.hostingStrategy, "node-backend-origin");
-  assert.deepEqual(report.networkSmoke.missing, ["SIRINX_DEPLOY_NETWORK_SMOKE_ALLOWED=true"]);
+  assert.equal(report.pagesRoutes.ok, true);
+  assert.equal(report.networkSmoke.missing.includes("SIRINX_DEPLOY_NETWORK_SMOKE_ALLOWED=true"), true);
   assert.equal(report.workflow.productionReady, false);
   assert.equal(report.guardrail.includes("no secret values printed"), true);
+});
+
+test("pages routes invoke functions only for /api wildcard", () => {
+  const routes = inspectPagesRoutes();
+
+  assert.equal(routes.ok, true);
+  assert.deepEqual(routes.include, ["/api/*"]);
+  assert.deepEqual(routes.exclude, []);
 });
 
 test("wrangler config keeps secret-like values out of vars", () => {

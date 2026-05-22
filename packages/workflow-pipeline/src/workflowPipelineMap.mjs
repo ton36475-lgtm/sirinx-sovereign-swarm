@@ -135,6 +135,22 @@ export const PIPELINE_STAGES = [
     scripts: ["npm run deploy:readiness", "npm run sprint10:gate"],
     guards: ["no_secret_vars", "https_api_origin", "network_smoke_disabled_by_default"],
     status: "config-ready-runtime-env-blocked"
+  },
+  {
+    id: "staging-network-smoke",
+    order: 120,
+    name: "Staging Network Smoke Gate",
+    component: "packages/deploy-readiness/src/stagingNetworkSmoke.mjs",
+    type: "deployment-gate",
+    routes: [
+      "GET /health",
+      "GET /solar-calculator",
+      "POST /webhooks/line",
+      "POST /webhooks/meta"
+    ],
+    scripts: ["npm run staging:smoke", "npm run sprint11:gate"],
+    guards: ["explicit_network_smoke_flag", "https_staging_origin", "signed_webhook_smoke_only"],
+    status: "skipped-until-staging-env"
   }
 ];
 
@@ -263,6 +279,24 @@ export const PIPELINE_FLOWS = [
     ],
     terminal: "blocked_until_runtime_env_and_staging_smoke",
     externalWrite: false
+  },
+  {
+    id: "staging-network-smoke",
+    name: "Staging Network Smoke",
+    currentMode: "skipped-by-default",
+    steps: [
+      "require_SIRINX_DEPLOY_NETWORK_SMOKE_ALLOWED_true",
+      "require_https_staging_origin",
+      "require_webhook_signature_secrets",
+      "GET /health",
+      "GET /solar-calculator",
+      "signed_LINE_webhook_disabled_check",
+      "LINE_replay_block_check",
+      "LINE_bad_signature_block_check",
+      "signed_Meta_webhook_disabled_check"
+    ],
+    terminal: "passed_or_skipped_without_external_write",
+    externalWrite: false
   }
 ];
 
@@ -293,7 +327,8 @@ export const PIPELINE_COMMANDS = [
   "npm run migration:readiness",
   "npm run webhook:smoke:signed",
   "npm run deploy:readiness",
-  "npm run sprint10:gate"
+  "npm run staging:smoke",
+  "npm run sprint11:gate"
 ];
 
 export function buildWorkflowPipelineReport({ env = process.env } = {}) {
@@ -368,7 +403,8 @@ export function validateWorkflowPipelineReport(report) {
     "reply-outbox",
     "social-webhook-security",
     "migration-readiness",
-    "deploy-readiness"
+    "deploy-readiness",
+    "staging-network-smoke"
   ];
 
   for (const stageId of requiredStages) {

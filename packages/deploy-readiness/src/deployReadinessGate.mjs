@@ -1,10 +1,12 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { buildWorkflowPipelineReport } from "../../workflow-pipeline/src/workflowPipelineMap.mjs";
+import { buildStagingNetworkSmokePlan } from "./stagingNetworkSmoke.mjs";
 
 const DEFAULT_ROOT = new URL("../../../", import.meta.url);
 const DEFAULT_WRANGLER_PATH = new URL("../../../wrangler.jsonc", import.meta.url);
 const DEFAULT_PROXY_PATH = new URL("../../../functions/api/[[path]].js", import.meta.url);
+const DEFAULT_ROUTES_PATH = new URL("../../../apps/www/static/_routes.json", import.meta.url);
 const SECRET_KEY_PATTERN = /(SECRET|TOKEN|PASSWORD|PRIVATE|SERVICE_ROLE|DATABASE_URL|API_KEY)$/i;
 const REQUIRED_PUBLIC_VARS = [
   "SIRINX_API_HOSTING_STRATEGY",
@@ -17,7 +19,8 @@ export function buildDeployReadinessReport({
   env = process.env,
   rootDir = DEFAULT_ROOT,
   wranglerPath = DEFAULT_WRANGLER_PATH,
-  proxyPath = DEFAULT_PROXY_PATH
+  proxyPath = DEFAULT_PROXY_PATH,
+  routesPath = DEFAULT_ROUTES_PATH
 } = {}) {
   const wrangler = inspectWranglerConfig({
     rootDir,
@@ -26,15 +29,19 @@ export function buildDeployReadinessReport({
   const apiProxy = inspectApiProxy({
     proxyPath
   });
-  const networkSmoke = inspectNetworkSmokeEnv(env);
+  const pagesRoutes = inspectPagesRoutes({
+    routesPath
+  });
+  const networkSmoke = buildStagingNetworkSmokePlan({ env });
   const workflow = buildWorkflowPipelineReport({ env });
-  const configReady = wrangler.ok && apiProxy.ok;
+  const configReady = wrangler.ok && apiProxy.ok && pagesRoutes.ok;
   const productionReady = configReady
-    && networkSmoke.enabled
+    && networkSmoke.ready
     && workflow.productionReady;
   const blockers = [
     ...wrangler.findings,
     ...apiProxy.findings,
+    ...pagesRoutes.findings,
     ...networkSmoke.missing,
     ...workflow.blockedComponents.map((component) => `workflow_blocked:${component}`)
   ];
@@ -47,6 +54,7 @@ export function buildDeployReadinessReport({
     hostingStrategy: wrangler.hostingStrategy,
     wrangler,
     apiProxy,
+    pagesRoutes,
     networkSmoke,
     workflow: {
       status: workflow.status,
@@ -192,15 +200,55 @@ export function inspectApiProxy({ proxyPath = DEFAULT_PROXY_PATH } = {}) {
   };
 }
 
-export function inspectNetworkSmokeEnv(env = process.env) {
-  const enabled = String(env.SIRINX_DEPLOY_NETWORK_SMOKE_ALLOWED || "")
-    .trim()
-    .toLowerCase() === "true";
+export function inspectPagesRoutes({ routesPath = DEFAULT_ROUTES_PATH } = {}) {
+  const findings = [];
+  if (!existsSync(routesPath)) {
+    return {
+      ok: false,
+      present: false,
+      path: "apps/www/static/_routes.json",
+      findings: ["pages_routes_json_missing"],
+      secretValuePrinted: false
+    };
+  }
+
+  let config;
+  try {
+    config = JSON.parse(readFileSync(routesPath, "utf8"));
+  } catch (error) {
+    return {
+      ok: false,
+      present: true,
+      path: "apps/www/static/_routes.json",
+      findings: [`pages_routes_json_parse_failed:${error.message}`],
+      secretValuePrinted: false
+    };
+  }
+
+  const include = Array.isArray(config.include) ? config.include : [];
+  const exclude = Array.isArray(config.exclude) ? config.exclude : [];
+  if (config.version !== 1) {
+    findings.push("pages_routes_version_must_be_1");
+  }
+  if (!include.includes("/api/*")) {
+    findings.push("pages_routes_must_include_api_wildcard");
+  }
+  if (include.includes("/*")) {
+    findings.push("pages_routes_must_not_invoke_all_routes");
+  }
+  if (exclude.includes("/api/*") || exclude.includes("/*")) {
+    findings.push("pages_routes_must_not_exclude_api_wildcard");
+  }
+
   return {
-    enabled,
-    missing: enabled ? [] : ["SIRINX_DEPLOY_NETWORK_SMOKE_ALLOWED=true"],
-    note: "Network smoke is disabled by default; this gate never performs network calls itself.",
-    valuePrinted: false
+    ok: findings.length === 0,
+    present: true,
+    path: "apps/www/static/_routes.json",
+    version: config.version,
+    include,
+    exclude,
+    findings,
+    secretValuePrinted: false
   };
 }
 
@@ -212,10 +260,14 @@ export function validateDeployReadinessReport(report) {
   if (report.workflow.invariants.externalWritesPerformedByReport !== false) {
     findings.push("workflow_report_external_write_regressed");
   }
-  if (report.wrangler.secretValuePrinted !== false || report.apiProxy.secretValuePrinted !== false) {
+  if (
+    report.wrangler.secretValuePrinted !== false
+    || report.apiProxy.secretValuePrinted !== false
+    || report.pagesRoutes.secretValuePrinted !== false
+  ) {
     findings.push("secret_value_print_regressed");
   }
-  if (report.configReady !== (report.wrangler.ok && report.apiProxy.ok)) {
+  if (report.configReady !== (report.wrangler.ok && report.apiProxy.ok && report.pagesRoutes.ok)) {
     findings.push("config_ready_mismatch");
   }
   return {

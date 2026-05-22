@@ -54,6 +54,7 @@ npm run sprint10:gate
 - API origin is HTTPS origin-only and has no embedded credentials
 - social webhook processing and external sends remain disabled in config
 - Pages Function proxy exists and uses only `SIRINX_API_ORIGIN`
+- Pages `_routes.json` invokes Functions only for `/api/*`
 - network smoke remains disabled unless explicitly enabled
 - workflow pipeline still reports no external writes
 

@@ -36,7 +36,9 @@ npm run migration:readiness
 npm run webhook:smoke:signed
 npm run workflow:pipeline
 npm run deploy:readiness
+npm run staging:smoke
 npm run sprint10:gate
+npm run sprint11:gate
 node apps/webhook-gateway/src/index.mjs
 ```
 
@@ -81,3 +83,7 @@ Staging readiness gate is documented in:
 Deploy readiness gate is documented in:
 
 `docs/SPRINT10_DEPLOY_READINESS_GATE.md`
+
+Staging network smoke gate is documented in:
+
+`docs/SPRINT11_STAGING_NETWORK_SMOKE.md`
