@@ -384,7 +384,7 @@ export function createWebhookGateway({
         return sendJson(response, 200, {
           status: "ok",
           service: "webhook-gateway",
-          sprint: "9-staging-readiness-gate"
+          sprint: "10-deploy-readiness-gate"
         });
       }
 

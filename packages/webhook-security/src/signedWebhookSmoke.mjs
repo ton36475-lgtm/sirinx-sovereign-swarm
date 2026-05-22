@@ -66,7 +66,7 @@ export async function runSignedWebhookSmoke() {
   });
 
   const checks = {
-    healthOk: health.statusCode === 200 && health.body.sprint === "9-staging-readiness-gate",
+    healthOk: health.statusCode === 200 && health.body.sprint === "10-deploy-readiness-gate",
     calculatorOk: calculator.statusCode === 200,
     lineVerifiedDisabled: line.statusCode === 202 && line.body.status === "verified_processing_disabled",
     lineReplayBlocked: lineReplay.statusCode === 409 && lineReplay.body.reason === "replay_detected",

@@ -1,0 +1,13 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "sirinx-sovereign-swarm-www",
+  "pages_build_output_dir": "./apps/www/static",
+  "compatibility_date": "2026-05-22",
+  "send_metrics": false,
+  "vars": {
+    "SIRINX_API_HOSTING_STRATEGY": "node-backend-origin",
+    "SIRINX_API_ORIGIN": "https://api.sirinx.co",
+    "SIRINX_SOCIAL_WEBHOOK_PROCESSING_ENABLED": "false",
+    "SIRINX_EXTERNAL_SENDS_ENABLED": "false"
+  }
+}

@@ -124,6 +124,17 @@ export const PIPELINE_STAGES = [
     scripts: ["npm run migration:readiness"],
     guards: ["rollback_coverage", "no_destructive_forward_sql", "mutation_flag_required"],
     status: "validate-only-by-default"
+  },
+  {
+    id: "deploy-readiness",
+    order: 110,
+    name: "Deploy Readiness Gate",
+    component: "wrangler.jsonc + functions/api/[[path]].js + packages/deploy-readiness",
+    type: "deployment-gate",
+    routes: ["Cloudflare Pages /api/* -> SIRINX_API_ORIGIN"],
+    scripts: ["npm run deploy:readiness", "npm run sprint10:gate"],
+    guards: ["no_secret_vars", "https_api_origin", "network_smoke_disabled_by_default"],
+    status: "config-ready-runtime-env-blocked"
   }
 ];
 
@@ -236,6 +247,22 @@ export const PIPELINE_FLOWS = [
     ],
     terminal: "blocked_until_db_env_and_mutation_gate",
     externalWrite: false
+  },
+  {
+    id: "deploy-readiness",
+    name: "Deploy Readiness",
+    currentMode: "read-only-local",
+    steps: [
+      "wrangler_jsonc_validate",
+      "pages_build_output_dir_check",
+      "api_origin_public_var_check",
+      "secret_like_vars_rejected",
+      "pages_api_proxy_check",
+      "workflow_pipeline_check",
+      "network_smoke_disabled_until_explicit_flag"
+    ],
+    terminal: "blocked_until_runtime_env_and_staging_smoke",
+    externalWrite: false
   }
 ];
 
@@ -248,6 +275,7 @@ export const PRODUCTION_BLOCKERS = [
   "Configure private admin token/runtime env without printing values.",
   "Configure production LINE/Meta webhook secrets without printing values.",
   "Run signed webhook smoke tests against staging origin before enabling production processing.",
+  "Run deploy readiness and staging network smoke after Node backend origin is reachable.",
   "Configure LINE OA recipient/token and message send gate.",
   "Add a send worker that can only send approved outbox items.",
   "Add production smoke tests that prove external_send_performed only changes after real send response.",
@@ -264,7 +292,8 @@ export const PIPELINE_COMMANDS = [
   "npm run webhook-security:preflight",
   "npm run migration:readiness",
   "npm run webhook:smoke:signed",
-  "npm run sprint9:gate"
+  "npm run deploy:readiness",
+  "npm run sprint10:gate"
 ];
 
 export function buildWorkflowPipelineReport({ env = process.env } = {}) {
@@ -338,7 +367,8 @@ export function validateWorkflowPipelineReport(report) {
     "human-approval",
     "reply-outbox",
     "social-webhook-security",
-    "migration-readiness"
+    "migration-readiness",
+    "deploy-readiness"
   ];
 
   for (const stageId of requiredStages) {

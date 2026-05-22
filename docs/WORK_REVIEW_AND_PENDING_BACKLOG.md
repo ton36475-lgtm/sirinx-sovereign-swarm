@@ -14,6 +14,7 @@
 | Sprint 8 | LINE/Meta webhook signature gate, replay window, rate limiter abstraction, webhook security audit |
 | Sprint 9 | Migration readiness gate, rollback coverage inspection, signed LINE/Meta webhook smoke harness |
 | Debug Pipeline | Read-only workflow pipeline report, stage/flow map, redacted readiness state, production blocker visibility |
+| Sprint 10 | Cloudflare Pages config, `/api/*` Pages proxy to Node backend origin, deploy readiness gate |
 
 ## Production Blockers
 
@@ -33,9 +34,10 @@
 
 ## Current Safe Next Move
 
-Build Sprint 10 as controlled staging execution gate:
+Run the Sprint 10 controlled staging/deploy readiness sequence:
 
 - run `npm run workflow:pipeline` before every deploy discussion to confirm no safety boundary regressed
+- run `npm run deploy:readiness` to confirm Cloudflare Pages config and Node backend origin proxy boundaries
 - configure a local or staging DB target without printing credentials
 - run `npm run migration:readiness` with `SIRINX_DB_DRY_RUN_MODE=local` or `staging`
 - only then run actual DB migration dry-run in that target

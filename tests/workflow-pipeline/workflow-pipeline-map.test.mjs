@@ -19,7 +19,8 @@ test("workflow pipeline map contains every implemented safety-critical stage", (
     "human-approval",
     "reply-outbox",
     "social-webhook-security",
-    "migration-readiness"
+    "migration-readiness",
+    "deploy-readiness"
   ]);
 });
 

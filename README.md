@@ -1,6 +1,6 @@
 # SIRINX Sovereign Agentic Swarm v2.1
 
-Sprint 1 local-first implementation for the event pipeline:
+Local-first implementation for the event pipeline and guarded deploy-readiness path:
 
 `Webhook Gateway -> Queue -> DLQ -> OPAL Static Pricing -> Hermes Draft Mock -> Lead Core Minimal`
 
@@ -34,6 +34,9 @@ npm run admin-auth:preflight
 npm run webhook-security:preflight
 npm run migration:readiness
 npm run webhook:smoke:signed
+npm run workflow:pipeline
+npm run deploy:readiness
+npm run sprint10:gate
 node apps/webhook-gateway/src/index.mjs
 ```
 
@@ -74,3 +77,7 @@ Webhook signature/replay boundary is documented in:
 Staging readiness gate is documented in:
 
 `docs/SPRINT9_STAGING_READINESS_GATE.md`
+
+Deploy readiness gate is documented in:
+
+`docs/SPRINT10_DEPLOY_READINESS_GATE.md`
